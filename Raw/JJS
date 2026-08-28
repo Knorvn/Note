@@ -1,5 +1,5 @@
 -- =========================================
--- KNOR JJS - RETRO 2016 GUI (FULL SYSTEM + BLACK FLASH + KILL SOUND)
+-- KNOR JJS - RETRO 2016 GUI (FULL SYSTEM + BLACK FLASH + KILL SOUND + DUYXD EXTENSIONS)
 -- =========================================
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -494,151 +494,139 @@ StatusLabel.Font = Enum.Font.SourceSansBold
 StatusLabel.TextSize = 11
 StatusLabel.Parent = KeyContainer
 
--- Tab Main (Scrolling Frame mở rộng kích thước để chứa thêm Kill Sound)
+-- Tab Main (Scrolling Frame tự động CanvasSize)
 local MainScrolling = Instance.new("ScrollingFrame")
 MainScrolling.Size = UDim2.new(1, 0, 1, -40)
 MainScrolling.Position = UDim2.new(0, 0, 0, 40)
 MainScrolling.BackgroundTransparency = 1
 MainScrolling.Visible = false
-MainScrolling.CanvasSize = UDim2.new(0, 0, 0, 260)
+MainScrolling.AutomaticCanvasSize = Enum.AutomaticSize.Y
+MainScrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
 MainScrolling.ScrollBarThickness = 4
 MainScrolling.Parent = MainFrame
 
--- Toggle: Black Flash
-local BlackFlashBtn = Instance.new("TextButton")
-BlackFlashBtn.Size = UDim2.new(0.85, 0, 0, 24)
-BlackFlashBtn.Position = UDim2.new(0.075, 0, 0, 10)
-BlackFlashBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-BlackFlashBtn.BorderColor3 = Color3.fromRGB(20, 20, 20)
-BlackFlashBtn.Text = "BlackFlash : OFF"
-BlackFlashBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-BlackFlashBtn.Font = Enum.Font.SourceSansBold
-BlackFlashBtn.TextSize = 10
-BlackFlashBtn.Parent = MainScrolling
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = MainScrolling
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-BlackFlashBtn.MouseButton1Click:Connect(function()
+local UIPadding = Instance.new("UIPadding")
+UIPadding.Parent = MainScrolling
+UIPadding.PaddingTop = UDim.new(0, 8)
+UIPadding.PaddingBottom = UDim.new(0, 8)
+
+-- =========================================
+-- HÀM BỔ TRỢ ĐỂ DỄ DÀNG THÊM BUTTON SAU NÀY
+-- =========================================
+
+local currentOrder = 0
+
+local function CreateMenuButton(name, onClick, isToggle)
+    currentOrder = currentOrder + 1
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.88, 0, 0, 24)
+    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    btn.BorderColor3 = Color3.fromRGB(20, 20, 20)
+    btn.Text = name
+    btn.TextColor3 = isToggle and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 10
+    btn.LayoutOrder = currentOrder
+    btn.Parent = MainScrolling
+
+    if onClick then
+        btn.MouseButton1Click:Connect(function()
+            onClick(btn)
+        end)
+    end
+    return btn
+end
+
+-- =========================================
+-- TẠO CÁC NÚT TÍNH NĂNG TRÊN MAIN TAB
+-- =========================================
+
+-- 1. Toggle: Black Flash
+CreateMenuButton("BlackFlash : OFF", function(btn)
     BlackFlashEnabled = not BlackFlashEnabled
     if BlackFlashEnabled then
-        BlackFlashBtn.Text = "BlackFlash : ON"
-        BlackFlashBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        BlackFlashBtn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
+        btn.Text = "BlackFlash : ON"
+        btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
     else
-        BlackFlashBtn.Text = "BlackFlash : OFF"
-        BlackFlashBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        BlackFlashBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        btn.Text = "BlackFlash : OFF"
+        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     end
-end)
+end, true)
 
--- Toggle: Anti Stun
-local AntiStunBtn = Instance.new("TextButton")
-AntiStunBtn.Size = UDim2.new(0.85, 0, 0, 24)
-AntiStunBtn.Position = UDim2.new(0.075, 0, 0, 42)
-AntiStunBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-AntiStunBtn.BorderColor3 = Color3.fromRGB(20, 20, 20)
-AntiStunBtn.Text = "Anti Stun: OFF"
-AntiStunBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-AntiStunBtn.Font = Enum.Font.SourceSansBold
-AntiStunBtn.TextSize = 10
-AntiStunBtn.Parent = MainScrolling
-
-AntiStunBtn.MouseButton1Click:Connect(function()
+-- 2. Toggle: Anti Stun
+CreateMenuButton("Anti Stun: OFF", function(btn)
     AntiStunEnabled = not AntiStunEnabled
     if AntiStunEnabled then
-        AntiStunBtn.Text = "Anti Stun: ON"
-        AntiStunBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        AntiStunBtn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
+        btn.Text = "Anti Stun: ON"
+        btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
         StartAntiStun()
     else
-        AntiStunBtn.Text = "Anti Stun: OFF"
-        AntiStunBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        AntiStunBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        btn.Text = "Anti Stun: OFF"
+        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
         if AntiStunConnection then AntiStunConnection:Disconnect() end
     end
-end)
+end, true)
 
--- Toggle: Auto Aim Lock
-local AimToggleBtn = Instance.new("TextButton")
-AimToggleBtn.Size = UDim2.new(0.85, 0, 0, 24)
-AimToggleBtn.Position = UDim2.new(0.075, 0, 0, 74)
-AimToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-AimToggleBtn.BorderColor3 = Color3.fromRGB(20, 20, 20)
-AimToggleBtn.Text = "Auto Aim Lock: OFF"
-AimToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-AimToggleBtn.Font = Enum.Font.SourceSansBold
-AimToggleBtn.TextSize = 10
-AimToggleBtn.Parent = MainScrolling
-
-AimToggleBtn.MouseButton1Click:Connect(function()
+-- 3. Toggle: Auto Aim Lock
+CreateMenuButton("Auto Aim Lock: OFF", function(btn)
     AutoAimEnabled = not AutoAimEnabled
     if AutoAimEnabled then
-        AimToggleBtn.Text = "Auto Aim Lock: ON"
-        AimToggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        AimToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
+        btn.Text = "Auto Aim Lock: ON"
+        btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
         StartAutoAim()
     else
-        AimToggleBtn.Text = "Auto Aim Lock: OFF"
-        AimToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        AimToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        btn.Text = "Auto Aim Lock: OFF"
+        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
         if AutoAimConnection then AutoAimConnection:Disconnect() end
     end
-end)
+end, true)
 
--- Toggle: Camlock (beta)
-local CamToggleBtn = Instance.new("TextButton")
-CamToggleBtn.Size = UDim2.new(0.85, 0, 0, 24)
-CamToggleBtn.Position = UDim2.new(0.075, 0, 0, 106)
-CamToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-CamToggleBtn.BorderColor3 = Color3.fromRGB(20, 20, 20)
-CamToggleBtn.Text = "Camlock (beta): OFF"
-CamToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-CamToggleBtn.Font = Enum.Font.SourceSansBold
-CamToggleBtn.TextSize = 10
-CamToggleBtn.Parent = MainScrolling
-
-CamToggleBtn.MouseButton1Click:Connect(function()
+-- 4. Toggle: Camlock (beta)
+CreateMenuButton("Camlock (beta): OFF", function(btn)
     CamlockEnabled = not CamlockEnabled
     if CamlockEnabled then
-        CamToggleBtn.Text = "Camlock (beta): ON"
-        CamToggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        CamToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
+        btn.Text = "Camlock (beta): ON"
+        btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
         StartCamlock()
     else
-        CamToggleBtn.Text = "Camlock (beta): OFF"
-        CamToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        CamToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        btn.Text = "Camlock (beta): OFF"
+        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
         if CamlockConnection then CamlockConnection:Disconnect() end
     end
-end)
+end, true)
 
--- Toggle: Kill Sound
-local KillSoundBtn = Instance.new("TextButton")
-KillSoundBtn.Size = UDim2.new(0.85, 0, 0, 24)
-KillSoundBtn.Position = UDim2.new(0.075, 0, 0, 138)
-KillSoundBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-KillSoundBtn.BorderColor3 = Color3.fromRGB(20, 20, 20)
-KillSoundBtn.Text = "Kill Sound: OFF"
-KillSoundBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-KillSoundBtn.Font = Enum.Font.SourceSansBold
-KillSoundBtn.TextSize = 10
-KillSoundBtn.Parent = MainScrolling
-
-KillSoundBtn.MouseButton1Click:Connect(function()
+-- 5. Toggle: Kill Sound
+CreateMenuButton("Kill Sound: OFF", function(btn)
     KillSoundEnabled = not KillSoundEnabled
     if KillSoundEnabled then
-        KillSoundBtn.Text = "Kill Sound: ON"
-        KillSoundBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        KillSoundBtn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
+        btn.Text = "Kill Sound: ON"
+        btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
     else
-        KillSoundBtn.Text = "Kill Sound: OFF"
-        KillSoundBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        KillSoundBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        btn.Text = "Kill Sound: OFF"
+        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     end
-end)
+end, true)
 
--- Textbox: Kill Sound ID
+-- 6. Textbox: Kill Sound ID
+currentOrder = currentOrder + 1
 local KillSoundBox = Instance.new("TextBox")
-KillSoundBox.Size = UDim2.new(0.85, 0, 0, 24)
-KillSoundBox.Position = UDim2.new(0.075, 0, 0, 170)
+KillSoundBox.Size = UDim2.new(0.88, 0, 0, 24)
 KillSoundBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 KillSoundBox.BorderColor3 = Color3.fromRGB(20, 20, 20)
 KillSoundBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -648,6 +636,7 @@ KillSoundBox.Text = KillSoundId
 KillSoundBox.TextSize = 10
 KillSoundBox.Font = Enum.Font.SourceSans
 KillSoundBox.ClearTextOnFocus = false
+KillSoundBox.LayoutOrder = currentOrder
 KillSoundBox.Parent = MainScrolling
 
 local KillSoundObject = Instance.new("Sound")
@@ -673,23 +662,30 @@ local function PlayKillSound()
     KillSoundObject:Play()
 end
 
--- Slider: Slient Range (10 - 100)
+-- 7. Slider: Slient Range (10 - 100)
+currentOrder = currentOrder + 1
+local SliderContainer = Instance.new("Frame")
+SliderContainer.Size = UDim2.new(0.88, 0, 0, 24)
+SliderContainer.BackgroundTransparency = 1
+SliderContainer.LayoutOrder = currentOrder
+SliderContainer.Parent = MainScrolling
+
 local RangeLabel = Instance.new("TextLabel")
-RangeLabel.Size = UDim2.new(0.85, 0, 0, 14)
-RangeLabel.Position = UDim2.new(0.075, 0, 0, 202)
+RangeLabel.Size = UDim2.new(1, 0, 0, 12)
+RangeLabel.Position = UDim2.new(0, 0, 0, 0)
 RangeLabel.BackgroundTransparency = 1
 RangeLabel.Text = "Slient Range: 25 studs"
 RangeLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
 RangeLabel.Font = Enum.Font.SourceSans
 RangeLabel.TextSize = 10
-RangeLabel.Parent = MainScrolling
+RangeLabel.Parent = SliderContainer
 
 local SliderFrame = Instance.new("Frame")
-SliderFrame.Size = UDim2.new(0.85, 0, 0, 8)
-SliderFrame.Position = UDim2.new(0.075, 0, 0, 220)
+SliderFrame.Size = UDim2.new(1, 0, 0, 8)
+SliderFrame.Position = UDim2.new(0, 0, 0, 14)
 SliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 SliderFrame.BorderColor3 = Color3.fromRGB(10, 10, 10)
-SliderFrame.Parent = MainScrolling
+SliderFrame.Parent = SliderContainer
 
 local SliderFill = Instance.new("Frame")
 SliderFill.Size = UDim2.new((SlientRange - 10) / (100 - 10), 0, 1, 0)
@@ -722,7 +718,17 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Chuyển Tab & Key System
+-- 8. Button: DuyXD Sweep all (Link Pastefy) ⚡
+CreateMenuButton("DuyXD Sweep all", function(btn)
+    pcall(function()
+        loadstring(game:HttpGet("https://pastefy.app/wIg0pRUl/raw"))()
+    end)
+end, false)
+
+-- =========================================
+-- CHUYỂN TAB & KEY SYSTEM
+-- =========================================
+
 KeyTabBtn.MouseButton1Click:Connect(function()
     KeyContainer.Visible = true
     MainScrolling.Visible = false
