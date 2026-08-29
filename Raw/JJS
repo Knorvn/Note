@@ -1,18 +1,19 @@
 -- =========================================
--- KNOR JJS - RETRO 2016 GUI (FULL SYSTEM + BLACK FLASH + KILL SOUND + DUYXD EXTENSIONS)
+-- KNOR JJS - RETRO 2016 GUI (FIXED NOT SHOWING GUI BUG)
 -- =========================================
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 
 -- Biến cấu hình GUI
 local IsKeyVerified = false
 local AutoAimEnabled = false
-local CamlockEnabled = false
 local AntiStunEnabled = false
 local BlackFlashEnabled = false
 local SlientRange = 25
@@ -21,8 +22,18 @@ local SlientRange = 25
 local KillSoundEnabled = false
 local KillSoundId = "138556707979170"
 
+-- Cấu hình Cyan Camlock
+local CamlockSettings = {
+    TrackingSpeed = 45,
+    TargetPart = "HumanoidRootPart",
+    DefaultWalkSpeed = 16,
+    ToggleKey = Enum.KeyCode.E
+}
+local CamlockEnabled = false
+local LockedTarget = nil
+local CamlockConnection = nil
+
 local AutoAimConnection
-local CamlockConnection
 local AntiStunConnection
 
 -- Biến cấu hình Black Flash
@@ -58,7 +69,6 @@ local function isAliveModel(model, exceptChar)
     return root and humanoid and humanoid.Health > 0
 end
 
--- Tìm Remote DivergentFist
 local function getDivergentFistRemote()
     local ok, remote = pcall(function()
         return ReplicatedStorage
@@ -74,7 +84,6 @@ end
 
 local targetRemote = getDivergentFistRemote()
 
--- Tìm mục tiêu gần nhất cho Black Flash
 local function findNearestTargetBF()
     local hrp = GetRoot()
     if not hrp then return nil end
@@ -108,7 +117,6 @@ local function findNearestTargetBF()
     return nearest
 end
 
--- Curved Dash Behind của Black Flash
 local function curvedDashBehind(targetRoot, duration, customOffset)
     local char = LocalPlayer.Character
     if not char then return end
@@ -154,7 +162,6 @@ local function curvedDashBehind(targetRoot, duration, customOffset)
     end)
 end
 
--- Hook Metamethod cho Black Flash
 if targetRemote then
     local oldNamecall
     oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
@@ -270,30 +277,6 @@ local function GetNearestTarget(maxRange)
     return nearestTarget
 end
 
-local function GetPlayerNearCrosshair()
-    local nearestPlayer = nil
-    local shortestDistance = math.huge
-    local mousePos = UserInputService:GetMouseLocation()
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local char = player.Character
-            local head = char and char:FindFirstChild("Head")
-            if head then
-                local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
-                if onScreen then
-                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        nearestPlayer = head
-                    end
-                end
-            end
-        end
-    end
-    return nearestPlayer
-end
-
 local function StartAutoAim()
     if AutoAimConnection then AutoAimConnection:Disconnect() end
     AutoAimConnection = RunService.RenderStepped:Connect(function()
@@ -310,21 +293,11 @@ local function StartAutoAim()
     end)
 end
 
-local function StartCamlock()
-    if CamlockConnection then CamlockConnection:Disconnect() end
-    CamlockConnection = RunService.RenderStepped:Connect(function()
-        if not CamlockEnabled then return end
-        local targetHead = GetPlayerNearCrosshair()
-        local root = GetRoot()
-        if targetHead and root then
-            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetHead.Position)
-        end
-    end)
-end
+-- =========================================
+-- LOGIC CYAN DIAMOND CAMLOCK
+-- =========================================
 
--- =========================================
--- GUI CREATION (2016 RETRO - TAB MAIN SCROLLING)
--- =========================================
+local CYAN_PRIMARY = Color3.fromRGB(0, 240, 225)
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "KnorJJSGUI"
@@ -334,8 +307,138 @@ local hui = (gethui and gethui()) or game:GetService("CoreGui")
 if hui:FindFirstChild(ScreenGui.Name) then
     hui[ScreenGui.Name]:Destroy()
 end
-
 ScreenGui.Parent = hui
+
+local ReticleContainer = Instance.new("Frame", ScreenGui)
+ReticleContainer.Size = UDim2.new(0, 60, 0, 60)
+ReticleContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+ReticleContainer.BackgroundTransparency = 1
+ReticleContainer.Visible = false
+
+local Diamond = Instance.new("Frame", ReticleContainer)
+Diamond.Size = UDim2.new(1, 0, 1, 0)
+Diamond.AnchorPoint = Vector2.new(0.5, 0.5)
+Diamond.Position = UDim2.new(0.5, 0, 0.5, 0)
+Diamond.Rotation = 45
+Diamond.BackgroundTransparency = 1
+
+local DiamondStroke = Instance.new("UIStroke", Diamond)
+DiamondStroke.Thickness = 2.5
+DiamondStroke.Color = CYAN_PRIMARY
+DiamondStroke.LineJoinMode = Enum.LineJoinMode.Miter
+
+local CenterDot = Instance.new("Frame", ReticleContainer)
+CenterDot.Size = UDim2.new(0, 4, 0, 4)
+CenterDot.AnchorPoint = Vector2.new(0.5, 0.5)
+CenterDot.Position = UDim2.new(0.5, 0, 0.5, 0)
+CenterDot.BackgroundColor3 = CYAN_PRIMARY
+CenterDot.BorderSizePixel = 0
+
+local DotCorner = Instance.new("UICorner", CenterDot)
+DotCorner.CornerRadius = UDim.new(1, 0)
+
+local function getClosestPlayerCamlock()
+    local Target = nil
+    local Dist = math.huge
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(CamlockSettings.TargetPart) then
+            local hum = v.Character:FindFirstChild("Humanoid")
+            if hum and hum.Health > 0 then
+                local Pos, OnScreen = Camera:WorldToScreenPoint(v.Character[CamlockSettings.TargetPart].Position)
+                if OnScreen then
+                    local TargetScreenPos = Vector2.new(Pos.X, Pos.Y)
+                    local InputScreenPos = UserInputService.TouchEnabled and (Camera.ViewportSize / 2) or Vector2.new(Mouse.X, Mouse.Y)
+                    local Mag = (InputScreenPos - TargetScreenPos).Magnitude
+                    if Mag < Dist then
+                        Dist = Mag
+                        Target = v.Character[CamlockSettings.TargetPart]
+                    end
+                end
+            end
+        end
+    end
+    return Target
+end
+
+local function toggleCamlock(btn)
+    CamlockEnabled = not CamlockEnabled
+    
+    if CamlockEnabled then
+        LockedTarget = getClosestPlayerCamlock()
+        if LockedTarget then
+            if btn then
+                btn.Text = "Camlock: ON (" .. LockedTarget.Parent.Name .. ")"
+                btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+                btn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
+            end
+            
+            ReticleContainer.Visible = true
+            ReticleContainer.Size = UDim2.new(0, 80, 0, 80)
+            TweenService:Create(ReticleContainer, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 60, 0, 60)
+            }):Play()
+            
+            CamlockConnection = RunService.RenderStepped:Connect(function(deltaTime)
+                if LockedTarget and LockedTarget.Parent and LockedTarget.Parent:FindFirstChild("Humanoid") and LockedTarget.Parent.Humanoid.Health > 0 then
+                    local TargetPos = LockedTarget.Position
+                    local LookAt = CFrame.new(Camera.CFrame.Position, TargetPos)
+                    local SmoothFactor = 1 - math.exp(-CamlockSettings.TrackingSpeed * deltaTime)
+                    Camera.CFrame = Camera.CFrame:Lerp(LookAt, SmoothFactor)
+                    
+                    local ScreenPos, OnScreen = Camera:WorldToScreenPoint(TargetPos)
+                    if OnScreen then
+                        ReticleContainer.Visible = true
+                        ReticleContainer.Position = UDim2.new(0, ScreenPos.X, 0, ScreenPos.Y)
+                    else
+                        ReticleContainer.Visible = false
+                    end
+                else
+                    CamlockEnabled = false
+                    ReticleContainer.Visible = false
+                    if btn then
+                        btn.Text = "Camlock: OFF"
+                        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+                        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                    end
+                    if CamlockConnection then CamlockConnection:Disconnect() end
+                end
+            end)
+        else
+            CamlockEnabled = false
+            ReticleContainer.Visible = false
+            if btn then
+                btn.Text = "Camlock: NO TARGET"
+                task.delay(1, function()
+                    if not CamlockEnabled then
+                        btn.Text = "Camlock: OFF"
+                        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+                        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                    end
+                end)
+            end
+        end
+    else
+        if btn then
+            btn.Text = "Camlock: OFF"
+            btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+            btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        end
+        ReticleContainer.Visible = false
+        if CamlockConnection then CamlockConnection:Disconnect() end
+        LockedTarget = nil
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == CamlockSettings.ToggleKey then
+        toggleCamlock(nil)
+    end
+end)
+
+-- =========================================
+-- GUI CREATION (RETRO MAIN)
+-- =========================================
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -424,7 +527,6 @@ OpenBtn.MouseButton1Click:Connect(function()
     OpenBtn.Visible = false
 end)
 
--- TAB SYSTEM
 local TabBar = Instance.new("Frame")
 TabBar.Size = UDim2.new(1, 0, 0, 20)
 TabBar.Position = UDim2.new(0, 0, 0, 20)
@@ -453,7 +555,6 @@ MainTabBtn.Font = Enum.Font.SourceSansBold
 MainTabBtn.TextSize = 10
 MainTabBtn.Parent = TabBar
 
--- Tab Key System
 local KeyContainer = Instance.new("Frame")
 KeyContainer.Size = UDim2.new(1, 0, 1, -40)
 KeyContainer.Position = UDim2.new(0, 0, 0, 40)
@@ -494,7 +595,6 @@ StatusLabel.Font = Enum.Font.SourceSansBold
 StatusLabel.TextSize = 11
 StatusLabel.Parent = KeyContainer
 
--- Tab Main (Scrolling Frame tự động CanvasSize)
 local MainScrolling = Instance.new("ScrollingFrame")
 MainScrolling.Size = UDim2.new(1, 0, 1, -40)
 MainScrolling.Position = UDim2.new(0, 0, 0, 40)
@@ -516,12 +616,7 @@ UIPadding.Parent = MainScrolling
 UIPadding.PaddingTop = UDim.new(0, 8)
 UIPadding.PaddingBottom = UDim.new(0, 8)
 
--- =========================================
--- HÀM BỔ TRỢ ĐỂ DỄ DÀNG THÊM BUTTON SAU NÀY
--- =========================================
-
 local currentOrder = 0
-
 local function CreateMenuButton(name, onClick, isToggle)
     currentOrder = currentOrder + 1
     local btn = Instance.new("TextButton")
@@ -544,7 +639,7 @@ local function CreateMenuButton(name, onClick, isToggle)
 end
 
 -- =========================================
--- TẠO CÁC NÚT TÍNH NĂNG TRÊN MAIN TAB
+-- BUTTONS TRÊN MAIN TAB
 -- =========================================
 
 -- 1. Toggle: Black Flash
@@ -593,20 +688,9 @@ CreateMenuButton("Auto Aim Lock: OFF", function(btn)
     end
 end, true)
 
--- 4. Toggle: Camlock (beta)
-CreateMenuButton("Camlock (beta): OFF", function(btn)
-    CamlockEnabled = not CamlockEnabled
-    if CamlockEnabled then
-        btn.Text = "Camlock (beta): ON"
-        btn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        btn.BackgroundColor3 = Color3.fromRGB(50, 90, 50)
-        StartCamlock()
-    else
-        btn.Text = "Camlock (beta): OFF"
-        btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        if CamlockConnection then CamlockConnection:Disconnect() end
-    end
+-- 4. Toggle: Cyan Camlock
+CreateMenuButton("Camlock: OFF", function(btn)
+    toggleCamlock(btn)
 end, true)
 
 -- 5. Toggle: Kill Sound
@@ -662,7 +746,7 @@ local function PlayKillSound()
     KillSoundObject:Play()
 end
 
--- 7. Slider: Slient Range (10 - 100)
+-- 7. Slider: Slient Range
 currentOrder = currentOrder + 1
 local SliderContainer = Instance.new("Frame")
 SliderContainer.Size = UDim2.new(0.88, 0, 0, 24)
@@ -718,15 +802,59 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- 8. Button: DuyXD Sweep all (Link Pastefy) ⚡
+-- 8. Button: Spawn Train (Sửa lỗi tìm Remote động an toàn) 🚆
+local SpawnTrainBtn = CreateMenuButton("Spawn train", function(btn)
+    pcall(function()
+        local remote = workspace:FindFirstChild("Map")
+            and workspace.Map:FindFirstChild("Destructible")
+            and workspace.Map.Destructible:FindFirstChild("Model")
+            and workspace.Map.Destructible.Model:FindFirstChild("StationControl")
+            and workspace.Map.Destructible.Model.StationControl:FindFirstChild("Handle")
+            and workspace.Map.Destructible.Model.StationControl.Handle:FindFirstChild("Train")
+
+        if remote then
+            remote:FireServer()
+        end
+    end)
+end, false)
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local prompt = workspace:FindFirstChild("Map") 
+            and workspace.Map:FindFirstChild("Destructible") 
+            and workspace.Map.Destructible:FindFirstChild("Model") 
+            and workspace.Map.Destructible.Model:FindFirstChild("StationControl") 
+            and workspace.Map.Destructible.Model.StationControl:FindFirstChild("ButtonTrain") 
+            and workspace.Map.Destructible.Model.StationControl.ButtonTrain:FindFirstChild("Button") 
+            and workspace.Map.Destructible.Model.StationControl.ButtonTrain.Button:FindFirstChild("Button")
+
+        if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+            SpawnTrainBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 50) 
+            SpawnTrainBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+        else
+            SpawnTrainBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 40) 
+            SpawnTrainBtn.TextColor3 = Color3.fromRGB(255, 150, 150)
+        end
+    end)
+end)
+
+-- 9. Button: DuyXD Sweep all
 CreateMenuButton("DuyXD Sweep all", function(btn)
     pcall(function()
         loadstring(game:HttpGet("https://pastefy.app/wIg0pRUl/raw"))()
     end)
 end, false)
 
+-- 10. Button: Knor Combat
+CreateMenuButton("Knor Combat", function(btn)
+    pcall(function()
+        loadstring(game:HttpGet("https://pastefy.app/00P3BFOX/raw"))()
+    end)
+end, false)
+
+
 -- =========================================
--- CHUYỂN TAB & KEY SYSTEM
+-- KEY SYSTEM & MONITORS
 -- =========================================
 
 KeyTabBtn.MouseButton1Click:Connect(function()
@@ -760,7 +888,6 @@ CheckKeyBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Find kills stat & Monitor
 local function FindKills()
     local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
     if not leaderstats then return nil end
