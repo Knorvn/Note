@@ -1,0 +1,246 @@
+-- ============================================================
+-- Clash Hub UI | knor bypass (auto)
+-- ============================================================
+
+local Library = loadstring(game:HttpGet("https://pastefy.app/g3niwpJt/raw"))()
+local Window = Library:CreateWindow("knor bypass (auto)")
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local localPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- Biến Trạng Thái
+local state = {
+    Noclip = false,
+    Bypass = false,
+    SweepAll = false,
+    ViewRandom = false
+}
+
+-- Hàm Phát Thông Báo
+local function notify(title, text)
+    pcall(function()
+        if Library.Notify then
+            Library:Notify(title, text)
+        elseif Library.Notification then
+            Library:Notification(title, text)
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = title,
+                Text = text,
+                Duration = 3
+            })
+        end
+    end)
+end
+
+-- 1. Noclip Loop
+RunService.Stepped:Connect(function()
+    if state.Noclip and localPlayer.Character then
+        for _, part in ipairs(localPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Hàm Lấy Target trong bán kính 500 studs (Player hoặc Dummy)
+local function getTarget(maxDistance)
+    maxDistance = maxDistance or 500
+    local targets = {}
+    
+    local myChar = localPlayer.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return nil end
+
+    -- Tìm Player trong bán kính
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= localPlayer and p.Character then
+            local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and hrp then
+                if (hrp.Position - myHRP.Position).Magnitude <= maxDistance then
+                    table.insert(targets, humanoid)
+                end
+            end
+        end
+    end
+    
+    -- Tìm Dummy Model trong bán kính
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and string.lower(obj.Name) == "dummy" then
+            local humanoid = obj:FindFirstChildOfClass("Humanoid")
+            local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
+            if humanoid and humanoid.Health > 0 and hrp then
+                if (hrp.Position - myHRP.Position).Magnitude <= maxDistance then
+                    table.insert(targets, humanoid)
+                end
+            end
+        end
+    end
+    
+    if #targets > 0 then
+        return targets[math.random(1, #targets)]
+    end
+    return nil
+end
+
+-- 2. Logic Bypass Loop
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if state.Bypass then
+            local character = localPlayer.Character
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            
+            -- Kiểm tra nhân vật còn sống hay không
+            if hrp and humanoid and humanoid.Health > 0 then
+                local targetHumanoid = getTarget(500)
+                local targetHRP = targetHumanoid and targetHumanoid.Parent and (targetHumanoid.Parent:FindFirstChild("HumanoidRootPart") or targetHumanoid.Parent:FindFirstChild("Torso"))
+                
+                if targetHRP then
+                    notify("Knor bypass", "Start bypass")
+                    local startPos = hrp.Position
+                    
+                    -- Dịch chuyển đến mục tiêu
+                    hrp.CFrame = targetHRP.CFrame
+                    
+                    -- Kiểm tra xem có bị rollback/teleport back trong 3 giây không
+                    local teleportedBack = false
+                    local timer = 0
+                    
+                    while timer < 3 do
+                        task.wait(0.1)
+                        timer = timer + 0.1
+                        
+                        -- Nếu chết hoặc tắt toggle giữa chừng thì dừng ngay
+                        if not state.Bypass or not humanoid or humanoid.Health <= 0 then 
+                            break 
+                        end
+                        
+                        -- Nếu bị dịch chuyển lại gần vị trí cũ
+                        if (hrp.Position - startPos).Magnitude < 10 then
+                            teleportedBack = true
+                            break
+                        end
+                    end
+                    
+                    -- Xử lý kết quả
+                    if state.Bypass and humanoid and humanoid.Health > 0 then
+                        if teleportedBack then
+                            local resetRemote = ReplicatedStorage:FindFirstChild("Knit")
+                                and ReplicatedStorage.Knit:FindFirstChild("Knit")
+                                and ReplicatedStorage.Knit.Knit:FindFirstChild("Services")
+                                and ReplicatedStorage.Knit.Knit.Services:FindFirstChild("JoinService")
+                                and ReplicatedStorage.Knit.Knit.Services.JoinService:FindFirstChild("RE")
+                                and ReplicatedStorage.Knit.Knit.Services.JoinService.RE:FindFirstChild("Reset")
+                            
+                            -- Phát remote mỗi 3s tới khi chết hoặc tắt toggle
+                            while state.Bypass and humanoid and humanoid.Health > 0 do
+                                if resetRemote then
+                                    resetRemote:FireServer()
+                                end
+                                task.wait(3)
+                            end
+                        else
+                            notify("Knor bypass", "Bypass Success")
+                            task.wait(2) -- Chờ 2s rồi mới tìm target tiếp theo để tránh spam thông báo
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- 3. Logic Sweep All Loop (Trong phạm vi 500 studs)
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if state.SweepAll then
+            local myChar = localPlayer.Character
+            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local humanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
+            
+            if myHRP and humanoid and humanoid.Health > 0 then
+                local targets = {}
+                
+                -- Tìm Player trong bán kính 500 studs
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= localPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                        local hrp = p.Character.HumanoidRootPart
+                        if (hrp.Position - myHRP.Position).Magnitude <= 500 then
+                            table.insert(targets, hrp)
+                        end
+                    end
+                end
+                
+                -- Tìm Dummy trong bán kính 500 studs
+                for _, obj in ipairs(Workspace:GetDescendants()) do
+                    if obj:IsA("Model") and string.lower(obj.Name) == "dummy" then
+                        local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
+                        if hrp and (hrp.Position - myHRP.Position).Magnitude <= 500 then
+                            table.insert(targets, hrp)
+                        end
+                    end
+                end
+                
+                -- Dịch chuyển qua các mục tiêu
+                for _, targetHRP in ipairs(targets) do
+                    if not state.SweepAll or not humanoid or humanoid.Health <= 0 then break end
+                    if myHRP and targetHRP and targetHRP.Parent then
+                        myHRP.CFrame = targetHRP.CFrame
+                        task.wait(0.045)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- 4. Logic View Random (Trong phạm vi 500 studs)
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if state.ViewRandom then
+            local targetHumanoid = getTarget(500)
+            if targetHumanoid then
+                camera.CameraSubject = targetHumanoid
+            end
+        end
+    end
+end)
+
+-- ============================================================
+-- UI TOGGLES
+-- ============================================================
+
+Window:AddToggle("Noclip", false, function(value)
+    state.Noclip = value
+end)
+
+Window:AddToggle("Bypass", false, function(value)
+    state.Bypass = value
+end)
+
+Window:AddToggle("Sweep All", false, function(value)
+    state.SweepAll = value
+end)
+
+Window:AddToggle("View random", false, function(value)
+    state.ViewRandom = value
+    
+    if not value then
+        local myCharacter = localPlayer.Character
+        local myHumanoid = myCharacter and myCharacter:FindFirstChildOfClass("Humanoid")
+        if myHumanoid then
+            camera.CameraSubject = myHumanoid
+        end
+    end
+end)
