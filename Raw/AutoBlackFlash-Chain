@@ -1,0 +1,416 @@
+-- ============================================================
+-- Clash Hub UI & Auto Black Flash Chain (By Knorvn) ⚡
+-- ============================================================
+
+local Library = loadstring(game:HttpGet("https://pastefy.app/g3niwpJt/raw"))()
+local Window = Library:CreateWindow("Auto Black Flash Chain | By Knorvn")
+
+-- ──────────────────────────────────────────────
+-- CONFIG
+-- ──────────────────────────────────────────────
+local CONFIG = {
+    Enabled = false,                 -- Bật / Tắt logic chính 💥
+    EnableTrail = true,              -- Bật / Tắt hiệu ứng Trail 🌠
+    AutoCancel = false,              -- Auto Cancel when 4x black flash ❌
+    AutoM1Cancel = false,            -- Auto M1 when cancel 🥊
+    BehindOffset = 5.5,              -- Distance 🎯
+    MaxDistanceLimit = 40,           -- Giới hạn khoảng cách dash (XYZ) 📏
+    AlreadyBehindTolerance = 3.5,
+    FireDelay = 0.31,                -- Đã giảm delay xuống 0.31s ⏱️
+    DashSpeed = 79,                  -- Speed 🚀
+    ArcSegments = 5,
+    SideWidth = 0.65,
+    TrailLifetime = 0.35,
+    DashAnimationId = "rbxassetid://0",
+    TargetAnimId = "rbxassetid://123171106092050" -- Anim ID 4x Black Flash
+}
+
+-- ──────────────────────────────────────────────
+-- SERVICES & REMOTES
+-- ──────────────────────────────────────────────
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function getDivergentFistRemote()
+    local ok, remote = pcall(function()
+        return ReplicatedStorage
+            :WaitForChild("Knit", 5)
+            :WaitForChild("Knit", 5)
+            :WaitForChild("Services", 5)
+            :WaitForChild("DivergentFistService", 5)
+            :WaitForChild("RE", 5)
+            :WaitForChild("Activated", 5)
+    end)
+    return ok and remote or nil
+end
+
+local function getItadoriRightActivatedRemote()
+    local ok, remote = pcall(function()
+        return ReplicatedStorage
+            :WaitForChild("Knit", 5)
+            :WaitForChild("Knit", 5)
+            :WaitForChild("Services", 5)
+            :WaitForChild("ItadoriService", 5)
+            :WaitForChild("RE", 5)
+            :WaitForChild("RightActivated", 5)
+    end)
+    return ok and remote or nil
+end
+
+local function getItadoriActivatedRemote()
+    local ok, remote = pcall(function()
+        return ReplicatedStorage
+            :WaitForChild("Knit", 5)
+            :WaitForChild("Knit", 5)
+            :WaitForChild("Services", 5)
+            :WaitForChild("ItadoriService", 5)
+            :WaitForChild("RE", 5)
+            :WaitForChild("Activated", 5)
+    end)
+    return ok and remote or nil
+end
+
+local targetRemote = getDivergentFistRemote()
+local rightActivatedRemote = getItadoriRightActivatedRemote()
+local activatedRemote = getItadoriActivatedRemote()
+
+if not targetRemote then
+    warn("[DivergentFist] DivergentFist Remote not found!")
+end
+
+-- ──────────────────────────────────────────────
+-- UTILS
+-- ──────────────────────────────────────────────
+local function getHRP()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getAnimator()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return nil end
+    return humanoid:FindFirstChildOfClass("Animator")
+end
+
+local function isAliveModel(model)
+    local myChar = LocalPlayer.Character
+    if model == myChar then return false end
+    local root = model:FindFirstChild("HumanoidRootPart")
+    local humanoid = model:FindFirstChild("Humanoid")
+    return root and humanoid and humanoid.Health > 0
+end
+
+-- Kiểm tra khoảng cách hình khối vuông XYZ (Bounding Box Limit) 📦
+local function isWithinBoxLimit(pos1, pos2, limit)
+    local diff = pos1 - pos2
+    return math.abs(diff.X) <= limit 
+       and math.abs(diff.Y) <= limit 
+       and math.abs(diff.Z) <= limit
+end
+
+local function findNearestTarget()
+    local hrp = getHRP()
+    if not hrp then return nil end
+
+    local nearest = nil
+    local bestDist = math.huge
+
+    local function checkModel(model)
+        if not isAliveModel(model) then return end
+        local root = model:FindFirstChild("HumanoidRootPart")
+        local dist = (hrp.Position - root.Position).Magnitude
+        if dist < bestDist then
+            bestDist = dist
+            nearest = model
+        end
+    end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            checkModel(player.Character)
+        end
+    end
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            checkModel(obj)
+        end
+    end
+
+    return nearest
+end
+
+-- ──────────────────────────────────────────────
+-- TRAIL & ANIMATION
+-- ──────────────────────────────────────────────
+local function createTrail(rootPart)
+    if not CONFIG.EnableTrail then return end
+    
+    local a0 = Instance.new("Attachment", rootPart)
+    local a1 = Instance.new("Attachment", rootPart)
+    a1.Position = Vector3.new(0, 2, 0)
+
+    local trail = Instance.new("Trail", rootPart)
+    trail.Attachment0 = a0
+    trail.Attachment1 = a1
+    trail.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+    trail.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.4),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    trail.Lifetime = CONFIG.TrailLifetime
+    trail.MinLength = 0
+    trail.FaceCamera = true
+
+    task.delay(CONFIG.TrailLifetime + 0.1, function()
+        trail:Destroy()
+        a0:Destroy()
+        a1:Destroy()
+    end)
+end
+
+local cachedDashAnim = nil
+local function playDashAnimation(duration)
+    local animator = getAnimator()
+    if not animator then return end
+
+    if not cachedDashAnim then
+        cachedDashAnim = Instance.new("Animation")
+        cachedDashAnim.AnimationId = CONFIG.DashAnimationId
+        cachedDashAnim.Name = "DivergentFistDashAnim"
+    end
+
+    local track = animator:LoadAnimation(cachedDashAnim)
+    track.Priority = Enum.AnimationPriority.Action
+    track:Play()
+
+    task.delay(duration, function()
+        if track and track.IsPlaying then
+            track:Stop(0.15)
+        end
+    end)
+end
+
+-- ──────────────────────────────────────────────
+-- ANIMATION TRACKER LISTENER 🎭
+-- ──────────────────────────────────────────────
+local processedTracks = {}
+
+local function onAnimationPlayed(track)
+    if not track or not track.Animation then return end
+    if track.Animation.AnimationId == CONFIG.TargetAnimId then
+        if processedTracks[track] then return end
+        processedTracks[track] = true
+
+        -- Logic Auto Cancel (RightActivated) 🛑
+        if CONFIG.AutoCancel then
+            task.spawn(function()
+                task.wait(0.55)
+                local remote = rightActivatedRemote or getItadoriRightActivatedRemote()
+                if remote then
+                    pcall(function()
+                        remote:FireServer()
+                    end)
+                end
+            end)
+        end
+
+        -- Logic Auto M1 (Activated) 🥊
+        if CONFIG.AutoM1Cancel then
+            task.spawn(function()
+                task.wait(0.7)
+                local remote = activatedRemote or getItadoriActivatedRemote()
+                if remote then
+                    pcall(function()
+                        remote:FireServer()
+                    end)
+                end
+            end)
+        end
+
+        track.Stopped:Connect(function()
+            processedTracks[track] = nil
+        end)
+    end
+end
+
+local function setupAnimListener(character)
+    if not character then return end
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+    local animator = humanoid:WaitForChild("Animator", 5)
+    if not animator then return end
+
+    animator.AnimationPlayed:Connect(onAnimationPlayed)
+end
+
+if LocalPlayer.Character then
+    setupAnimListener(LocalPlayer.Character)
+end
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    setupAnimListener(char)
+end)
+
+-- ──────────────────────────────────────────────
+-- CURVED DASH
+-- ──────────────────────────────────────────────
+local function performCurvedDash(targetRoot)
+    local hrp = getHRP()
+    if not hrp then return end
+
+    local myPos = hrp.Position
+    local targetPos = targetRoot.Position
+
+    -- Kiểm tra giới hạn khoảng cách XYZ 📐
+    if not isWithinBoxLimit(myPos, targetPos, CONFIG.MaxDistanceLimit) then
+        print("[DivergentFist] Target exceeds maximum distance limit (XYZ) — skip dash")
+        return
+    end
+
+    local destPos = (targetRoot.CFrame * CFrame.new(0, 0, CONFIG.BehindOffset)).Position
+
+    if (myPos - destPos).Magnitude < CONFIG.AlreadyBehindTolerance then
+        return
+    end
+
+    local dist = (destPos - myPos).Magnitude
+    if dist < 0.5 then return end
+
+    local dir = (destPos - myPos).Unit
+    local side = dir:Cross(Vector3.new(0, 1, 0)).Unit
+    if math.random(1, 2) == 2 then side = -side end
+
+    local sw = CONFIG.SideWidth
+    local segs = CONFIG.ArcSegments
+
+    local arcDef = {
+        { 0.10, sw * 0.50 },
+        { 0.30, sw * 0.80 },
+        { 0.55, sw * 0.70 },
+        { 0.75, sw * 0.40 },
+        { 1.00, 0 },
+    }
+
+    local waypoints = {}
+    for i = 1, math.min(segs, #arcDef) do
+        local fwd = arcDef[i][1]
+        local sw2 = arcDef[i][2]
+        table.insert(waypoints, myPos + (dir * dist * fwd) + (side * dist * sw2))
+    end
+
+    local totalTime = math.max(dist / CONFIG.DashSpeed, 0.08)
+    local segTime = totalTime / #waypoints
+
+    createTrail(hrp)
+    playDashAnimation(totalTime)
+
+    for i, wp in ipairs(waypoints) do
+        local lookDir = (i < #waypoints) and (waypoints[i + 1] - wp).Unit or (targetRoot.Position - wp).Unit
+        local tween = TweenService:Create(
+            hrp,
+            TweenInfo.new(segTime, Enum.EasingStyle.Linear),
+            { CFrame = CFrame.new(wp, wp + lookDir) }
+        )
+        tween:Play()
+        task.wait(segTime)
+    end
+
+    hrp.CFrame = CFrame.lookAt(destPos, targetRoot.Position)
+end
+
+-- ──────────────────────────────────────────────
+-- HOOK METAMETHOD
+-- ──────────────────────────────────────────────
+local isCooling = false
+local oldNamecall
+
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    if getnamecallmethod() ~= "FireServer" or self ~= targetRemote then
+        return oldNamecall(self, ...)
+    end
+
+    if not CONFIG.Enabled then
+        return oldNamecall(self, ...)
+    end
+
+    if isCooling then
+        return oldNamecall(self, ...)
+    end
+
+    isCooling = true
+    local result = oldNamecall(self, ...)
+    local args = { ... }
+
+    -- Delay 0.31s trước khi nhân đôi Remote ⏱️
+    task.delay(CONFIG.FireDelay, function()
+        pcall(function()
+            targetRemote:FireServer(table.unpack(args))
+        end)
+        task.defer(function()
+            isCooling = false
+        end)
+    end)
+
+    task.spawn(function()
+        local target = findNearestTarget()
+        if not target then return end
+        local targetRoot = target:FindFirstChild("HumanoidRootPart")
+        if not targetRoot or not targetRoot.Parent then return end
+        performCurvedDash(targetRoot)
+    end)
+
+    return result
+end)
+
+-- ──────────────────────────────────────────────
+-- CLASH HUB UI ELEMENTS 🎮
+-- ──────────────────────────────────────────────
+
+-- Toggle: Black flash chain ⚡
+Window:AddToggle("Black flash chain", false, function(state)
+    CONFIG.Enabled = state
+end)
+
+-- Toggle: Trail 🌠
+Window:AddToggle("Trail", true, function(state)
+    CONFIG.EnableTrail = state
+end)
+
+-- Toggle: Auto Cancel when 4x black flash ❌
+Window:AddToggle("Auto Cancel when 4x black flash", false, function(state)
+    CONFIG.AutoCancel = state
+end)
+
+-- Toggle: Auto M1 when cancel 🥊
+Window:AddToggle("Auto M1 when cancel", false, function(state)
+    CONFIG.AutoM1Cancel = state
+end)
+
+-- Input: Speed 🚀
+Window:AddInput("Speed", tostring(CONFIG.DashSpeed), function(text)
+    local num = tonumber(text)
+    if num then
+        CONFIG.DashSpeed = num
+    end
+end)
+
+-- Input: Distance 🎯
+Window:AddInput("Distance", tostring(CONFIG.BehindOffset), function(text)
+    local num = tonumber(text)
+    if num then
+        CONFIG.BehindOffset = num
+    end
+end)
+
+-- Input: Limit Distance (XYZ) 📐
+Window:AddInput("Limit Distance", tostring(CONFIG.MaxDistanceLimit), function(text)
+    local num = tonumber(text)
+    if num then
+        CONFIG.MaxDistanceLimit = num
+    end
+end)
