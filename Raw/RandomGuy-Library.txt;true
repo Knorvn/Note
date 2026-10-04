@@ -58,7 +58,6 @@ function Library:CreateWindow(options)
     pcall(function() ScreenGui.Parent = CoreGui end)
     if not ScreenGui.Parent then ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui") end
 
-    -- GUI Đen tuyền (0, 0, 0)
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 350, 0, 275)
@@ -149,7 +148,6 @@ function Library:CreateWindow(options)
     TabListLayout.Padding = UDim.new(0, 4)
     TabListLayout.Parent = TabBar
 
-    -- Mở rộng vùng chứa khi Usêtabs = false
     local Container = Instance.new("Frame")
     Container.Name = "Container"
     if UseTabs then
@@ -162,29 +160,9 @@ function Library:CreateWindow(options)
     Container.BackgroundTransparency = 1
     Container.Parent = MainFrame
 
-    local LockOverlay = Instance.new("Frame")
-    LockOverlay.Name = "LockOverlay"
-    LockOverlay.Size = UDim2.new(1, 0, 1, 0)
-    LockOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    LockOverlay.BackgroundTransparency = 0.35
-    LockOverlay.BorderSizePixel = 0
-    LockOverlay.ZIndex = 10
-    LockOverlay.Visible = UseKey and not KeyCorrect
-    LockOverlay.Parent = Container
-
-    local LockLabel = Instance.new("TextLabel")
-    LockLabel.Size = UDim2.new(1, 0, 1, 0)
-    LockLabel.Text = "Tab Locked"
-    LockLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-    LockLabel.TextSize = 16
-    LockLabel.Font = Enum.Font.GothamBold
-    LockLabel.BackgroundTransparency = 1
-    LockLabel.ZIndex = 11
-    LockLabel.Parent = LockOverlay
-
     local WindowObj = {Tabs = {}}
 
-    local function CreateTabInternal(tabName)
+    local function CreateTabInternal(tabName, isKeyTab)
         local TabBtn = nil
         if UseTabs then
             TabBtn = Instance.new("TextButton")
@@ -218,6 +196,30 @@ function Library:CreateWindow(options)
             TabPage.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 10)
         end)
 
+        -- Lock Overlay cho từng Tab tính năng (không dùng cho KeyTab)
+        local LockOverlay = nil
+        if UseKey and not isKeyTab then
+            LockOverlay = Instance.new("Frame")
+            LockOverlay.Name = "LockOverlay"
+            LockOverlay.Size = UDim2.new(1, 0, 1, 0)
+            LockOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            LockOverlay.BackgroundTransparency = 0.35
+            LockOverlay.BorderSizePixel = 0
+            LockOverlay.ZIndex = 10
+            LockOverlay.Visible = not KeyCorrect
+            LockOverlay.Parent = TabPage
+
+            local LockLabel = Instance.new("TextLabel")
+            LockLabel.Size = UDim2.new(1, 0, 1, 0)
+            LockLabel.Text = "Tab Locked"
+            LockLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+            LockLabel.TextSize = 16
+            LockLabel.Font = Enum.Font.GothamBold
+            LockLabel.BackgroundTransparency = 1
+            LockLabel.ZIndex = 11
+            LockLabel.Parent = LockOverlay
+        end
+
         if UseTabs and TabBtn then
             TabBtn.MouseButton1Click:Connect(function()
                 for _, t in pairs(WindowObj.Tabs) do
@@ -238,11 +240,11 @@ function Library:CreateWindow(options)
             TabPage.Visible = true
         end
 
-        local TabElements = {Btn = TabBtn, Page = TabPage}
+        local TabElements = {Btn = TabBtn, Page = TabPage, LockOverlay = LockOverlay}
 
         local function CheckAccess(callback)
             return function(...)
-                if UseKey and not KeyCorrect then return end
+                if UseKey and not KeyCorrect and not isKeyTab then return end
                 callback(...)
             end
         end
@@ -378,7 +380,7 @@ function Library:CreateWindow(options)
 
             local dragging = false
             local function Update(input)
-                if UseKey and not KeyCorrect then return end
+                if UseKey and not KeyCorrect and not isKeyTab then return end
                 local pos = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
                 local val = math.floor(min + (max - min) * pos)
                 ValLabel.Text = tostring(val)
@@ -504,14 +506,11 @@ function Library:CreateWindow(options)
             BoxCorner.CornerRadius = UDim.new(0, 4)
             BoxCorner.Parent = TextBox
 
-            TextBox.FocusLost:Connect(function(enter)
-                if UseKey and not KeyCorrect then
-                    TextBox.Text = ""
+            TextBox.FocusLost:Connect(function()
+                if UseKey and not KeyCorrect and not isKeyTab then
                     return
                 end
-                local val = TextBox.Text
-                TextBox.Text = "" -- Tự động xóa chữ sau khi nhập
-                if callback then callback(val) end
+                if callback then callback(TextBox.Text) end
             end)
         end
 
@@ -520,17 +519,19 @@ function Library:CreateWindow(options)
     end
 
     function WindowObj:CreateTab(tabName)
-        if not UseTabs then return WindowObj.DefaultTab end
-        return CreateTabInternal(tabName)
+        if not UseTabs then 
+            return WindowObj.DefaultTab 
+        end
+        return CreateTabInternal(tabName, false)
     end
 
     if not UseTabs then
-        WindowObj.DefaultTab = CreateTabInternal("Main")
+        WindowObj.DefaultTab = CreateTabInternal("Main", false)
     end
 
-    -- Tab Key System
+    -- Tab Key System (Tạo riêng, truyền isKeyTab = true)
     if UseKey then
-        local KeyTab = UseTabs and WindowObj:CreateTab("Key System") or WindowObj.DefaultTab
+        local KeyTab = UseTabs and CreateTabInternal("Key System", true) or WindowObj.DefaultTab
 
         KeyTab:AddInput("Enter Key:", "Key...", function(val)
             EnteredKey = val
@@ -539,11 +540,19 @@ function Library:CreateWindow(options)
         KeyTab:AddButton("Check Key", function()
             if EnteredKey == DefaultKey then
                 KeyCorrect = true
-                LockOverlay.Visible = false
+                for _, t in pairs(WindowObj.Tabs) do
+                    if t.LockOverlay then
+                        t.LockOverlay.Visible = false
+                    end
+                end
                 print("Status: Key Correct!")
             else
                 KeyCorrect = false
-                LockOverlay.Visible = true
+                for _, t in pairs(WindowObj.Tabs) do
+                    if t.LockOverlay then
+                        t.LockOverlay.Visible = true
+                    end
+                end
                 print("Status: Key Incorrect!")
             end
         end)
@@ -556,7 +565,7 @@ function Library:CreateWindow(options)
         end
     end
 
-    return UseTabs and WindowObj or WindowObj.DefaultTab
+    return WindowObj
 end
 
 return Library
