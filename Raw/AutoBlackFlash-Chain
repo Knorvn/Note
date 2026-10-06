@@ -2,7 +2,7 @@
 -- Clash Hub UI & Auto Black Flash Chain (By Knorvn) ⚡
 -- ============================================================
 
-local Library = loadstring(game:HttpGet("https://pastefy.app/g3niwpJt/raw"))()
+local Library = loadstring(game:HttpGet("https://pastefy.app/NiqrPL3y/raw"))()
 local Window = Library:CreateWindow("Auto Black Flash Chain | By Knorvn")
 
 -- ──────────────────────────────────────────────
@@ -16,13 +16,16 @@ local CONFIG = {
     BehindOffset = 5.5,              -- Distance 🎯
     MaxDistanceLimit = 40,           -- Giới hạn khoảng cách dash (XYZ) 📏
     AlreadyBehindTolerance = 3.5,
-    FireDelay = 0.31,                -- Đã giảm delay xuống 0.31s ⏱️
+    FireDelay = 0.31,                -- Delay 0.31s ⏱️
+    ChainCount = 3,                  -- Số lần lặp Hắc Thiểm nối tiếp ⚡
     DashSpeed = 79,                  -- Speed 🚀
     ArcSegments = 5,
     SideWidth = 0.65,
     TrailLifetime = 0.35,
     DashAnimationId = "rbxassetid://0",
-    TargetAnimId = "rbxassetid://123171106092050" -- Anim ID 4x Black Flash
+    TargetAnimId = "rbxassetid://123171106092050", -- Anim ID 4x Black Flash
+    ShowPing = false,                -- Toggle Show Ping 📶
+    FixLag = false                   -- Toggle Fix Lag 🚀
 }
 
 -- ──────────────────────────────────────────────
@@ -30,6 +33,10 @@ local CONFIG = {
 -- ──────────────────────────────────────────────
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -81,6 +88,101 @@ if not targetRemote then
 end
 
 -- ──────────────────────────────────────────────
+-- UI PING CẦU VỒNG (RAINBOW PING) 🌈📶
+-- ──────────────────────────────────────────────
+local CoreGui = game:GetService("CoreGui")
+local pingGui = CoreGui:FindFirstChild("RainbowPingGui")
+
+if pingGui then pingGui:Destroy() end
+
+pingGui = Instance.new("ScreenGui")
+pingGui.Name = "RainbowPingGui"
+pingGui.ResetOnSpawn = false
+pingGui.Enabled = false
+pingGui.Parent = CoreGui
+
+local pingLabel = Instance.new("TextLabel")
+pingLabel.Name = "PingLabel"
+pingLabel.Parent = pingGui
+pingLabel.AnchorPoint = Vector2.new(0.5, 0)
+pingLabel.Position = UDim2.new(0.5, 0, 0, 10)
+pingLabel.Size = UDim2.new(0, 200, 0, 30)
+pingLabel.BackgroundTransparency = 1
+pingLabel.Font = Enum.Font.FredokaOne
+pingLabel.TextSize = 20
+pingLabel.Text = "Ping: 0 ms"
+pingLabel.TextStrokeTransparency = 0.2
+
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    if CONFIG.ShowPing then
+        hue = (hue + dt * 0.2) % 1
+        pingLabel.TextColor3 = Color3.fromHSV(hue, 0.8, 1)
+        
+        local pingVal = 0
+        pcall(function()
+            pingVal = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+        pingLabel.Text = "Ping: " .. tostring(pingVal) .. " ms"
+    end
+end)
+
+-- ──────────────────────────────────────────────
+-- LIGHTWEIGHT FIX LAG SYSTEM (VFX & BÓNG TỐI) 🚀
+-- ──────────────────────────────────────────────
+local originalLightingShadows = Lighting.GlobalShadows
+local backupVFX = {}
+
+local function isVFX(obj)
+    return obj:IsA("ParticleEmitter") 
+        or obj:IsA("Trail") 
+        or obj:IsA("Smoke") 
+        or obj:IsA("Fire") 
+        or obj:IsA("Sparkles") 
+        or obj:IsA("Beam")
+end
+
+local function applyFixLag()
+    -- Xóa bóng tối
+    Lighting.GlobalShadows = false
+
+    -- Tắt hiệu ứng VFX
+    for _, obj in ipairs(game:GetDescendants()) do
+        if isVFX(obj) then
+            if backupVFX[obj] == nil then
+                backupVFX[obj] = obj.Enabled
+            end
+            obj.Enabled = false
+        end
+    end
+end
+
+local function restoreFixLag()
+    -- Trả lại bóng tối nguyên trạng
+    Lighting.GlobalShadows = originalLightingShadows
+
+    -- Khôi phục hiệu ứng VFX
+    for obj, wasEnabled in pairs(backupVFX) do
+        if obj and obj.Parent then
+            obj.Enabled = wasEnabled
+        end
+    end
+    table.clear(backupVFX)
+end
+
+-- Tự động tắt VFX mới sinh ra khi bật Fix Lag
+game.DescendantAdded:Connect(function(obj)
+    if CONFIG.FixLag and isVFX(obj) then
+        task.defer(function()
+            if backupVFX[obj] == nil then
+                backupVFX[obj] = obj.Enabled
+            end
+            obj.Enabled = false
+        end)
+    end
+end)
+
+-- ──────────────────────────────────────────────
 -- UTILS
 -- ──────────────────────────────────────────────
 local function getHRP()
@@ -104,7 +206,6 @@ local function isAliveModel(model)
     return root and humanoid and humanoid.Health > 0
 end
 
--- Kiểm tra khoảng cách hình khối vuông XYZ (Bounding Box Limit) 📦
 local function isWithinBoxLimit(pos1, pos2, limit)
     local diff = pos1 - pos2
     return math.abs(diff.X) <= limit 
@@ -206,7 +307,6 @@ local function onAnimationPlayed(track)
         if processedTracks[track] then return end
         processedTracks[track] = true
 
-        -- Logic Auto Cancel (RightActivated) 🛑
         if CONFIG.AutoCancel then
             task.spawn(function()
                 task.wait(0.55)
@@ -219,7 +319,6 @@ local function onAnimationPlayed(track)
             end)
         end
 
-        -- Logic Auto M1 (Activated) 🥊
         if CONFIG.AutoM1Cancel then
             task.spawn(function()
                 task.wait(0.7)
@@ -266,7 +365,6 @@ local function performCurvedDash(targetRoot)
     local myPos = hrp.Position
     local targetPos = targetRoot.Position
 
-    -- Kiểm tra giới hạn khoảng cách XYZ 📐
     if not isWithinBoxLimit(myPos, targetPos, CONFIG.MaxDistanceLimit) then
         print("[DivergentFist] Target exceeds maximum distance limit (XYZ) — skip dash")
         return
@@ -326,45 +424,39 @@ end
 -- ──────────────────────────────────────────────
 -- HOOK METAMETHOD
 -- ──────────────────────────────────────────────
-local isCooling = false
+local isProcessing = false
 local oldNamecall
 
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    if getnamecallmethod() ~= "FireServer" or self ~= targetRemote then
-        return oldNamecall(self, ...)
-    end
-
-    if not CONFIG.Enabled then
-        return oldNamecall(self, ...)
-    end
-
-    if isCooling then
-        return oldNamecall(self, ...)
-    end
-
-    isCooling = true
-    local result = oldNamecall(self, ...)
+    local method = getnamecallmethod()
     local args = { ... }
 
-    -- Delay 0.31s trước khi nhân đôi Remote ⏱️
-    task.delay(CONFIG.FireDelay, function()
-        pcall(function()
-            targetRemote:FireServer(table.unpack(args))
-        end)
-        task.defer(function()
-            isCooling = false
-        end)
-    end)
+    if method == "FireServer" and self == targetRemote and CONFIG.Enabled then
+        if not isProcessing then
+            isProcessing = true
+            
+            task.spawn(function()
+                for i = 1, CONFIG.ChainCount do
+                    task.wait(CONFIG.FireDelay)
+                    pcall(function()
+                        targetRemote:FireServer(table.unpack(args))
+                    end)
+                end
+                
+                task.wait(CONFIG.FireDelay)
+                isProcessing = false
+            end)
 
-    task.spawn(function()
-        local target = findNearestTarget()
-        if not target then return end
-        local targetRoot = target:FindFirstChild("HumanoidRootPart")
-        if not targetRoot or not targetRoot.Parent then return end
-        performCurvedDash(targetRoot)
-    end)
+            task.spawn(function()
+                local target = findNearestTarget()
+                if target and target:FindFirstChild("HumanoidRootPart") then
+                    performCurvedDash(target.HumanoidRootPart)
+                end
+            end)
+        end
+    end
 
-    return result
+    return oldNamecall(self, ...)
 end)
 
 -- ──────────────────────────────────────────────
@@ -389,6 +481,30 @@ end)
 -- Toggle: Auto M1 when cancel 🥊
 Window:AddToggle("Auto M1 when cancel", false, function(state)
     CONFIG.AutoM1Cancel = state
+end)
+
+-- Toggle: Show Ping 📶
+Window:AddToggle("Show Ping", false, function(state)
+    CONFIG.ShowPing = state
+    pingGui.Enabled = state
+end)
+
+-- Toggle: Fix Lag 🚀
+Window:AddToggle("Fix Lag", false, function(state)
+    CONFIG.FixLag = state
+    if state then
+        applyFixLag()
+    else
+        restoreFixLag()
+    end
+end)
+
+-- Input: Chain Count ⚡
+Window:AddInput("Chain Count", tostring(CONFIG.ChainCount), function(text)
+    local num = tonumber(text)
+    if num then
+        CONFIG.ChainCount = num
+    end
 end)
 
 -- Input: Speed 🚀
