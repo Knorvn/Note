@@ -1,102 +1,108 @@
-local _1 = string.byte
-local _2 = string.char
-local _3 = string.sub
-local _4 = math.bxor
+--// Team Knor Intro
 
-local function _D(data, key)
-    local res = {}
-    for i = 1, #data do
-        local b = _1(data, i)
-        local k = _1(key, ((i - 1) % #key) + 1)
-        table.insert(res, _2(_4(b, k)))
-    end
-    return table.concat(res)
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+if not player then
+    player = Players.PlayerAdded:Wait()
 end
 
-local _K = "\x54\x65\x61\x6d\x4b\x6e\x6f\x72\x32\x30\x32\x36" -- Key mã hóa
+local gui = Instance.new("ScreenGui")
+gui.Name = "TeamKnorIntro"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999999
 
-local _E = {
-    "\x04\x39\x35\x2c\x31\x26\x27", -- Players
-    "\x00\x32\x21\x21\x3a\x07\x31\x26\x22\x3d\x37\x31", -- TweenService
-    "\x04\x39\x35\x2c\x31\x26\x13\x21\x3d", -- PlayerGui
-    "\x07\x37\x26\x31\x31\x3a\x13\x21\x3d", -- ScreenGui
-    "\x00\x31\x35\x29\x1f\x3a\x3b\x26\x1d\x3a\x20\x26\x3b", -- TeamKnorIntro
-    "\x00\x31\x2c\x20\x18\x35\x36\x31\x38", -- TextLabel
-    "\x07\x37\x26\x3d\x24\x20\x74\x39\x35\x20\x31\x74\x36\x2d\x74\x00\x31\x35\x29\x74\x1f\x3a\x3b\x26", -- Script made by Team Knor
-    "\x00\x3d\x3f\x20\x3b\x3f\x74\x6e\x74\x1f\x3a\x3b\x26\x22\x3d\x31\x20\x74\x28\x74\x0d\x3b\x21\x20\x21\x36\x31\x74\x3a\x74\x1b\x3a\x3b\x26\x74\x15\x37\x20\x21\x35\x38", -- Tiktok : Knorviet | YouTube : Knor Actual
-    "\x00\x3c\x3d\x27\x74\x27\x37\x26\x39\x24\x20\x74\x3d\x27\x74\x3b\x21\x20\x74\x01\x24\x30\x35\x20\x31", -- This script is out Update
-    "\x18\x3b\x35\x30\x27\x20\x26\x3d\x3a\x33\x7c\x33\x35\x29\x31\x6e\x1c\x20\x20\x24\x13\x31\x20\x7c\x76\x3c\x20\x20\x24\x27\x6e\x7b\x7b\x26\x35\x23\x7a\x33\x3d\x20\x3c\x21\x36\x21\x21\x27\x31\x3a\x20\x31\x3a\x20\x7a\x37\x3b\x39\x2b\x1f\x3a\x3b\x26\x22\x3a\x7f\x1a\x3b\x20\x31\x2b\x0a\x31\x32\x27\x7f\x3c\x31\x35\x30\x27\x7f\x39\x35\x2d\x2b\x06\x38\x35\x37\x2f\x12\x38\x35\x27\x3c\x79\x17\x3c\x35\x3d\x3a\x7a\x06\x31\x35\x30\x39\x11\x31\x7a\x20\x2c\x20\x7c\x2d\x7c\x2c", -- Raw Github URL
-    "\x00\x3c\x31\x74\x38\x35\x20\x31\x27\x27\x74\x27\x37\x26\x39\x24\x20\x74\x3c\x35\x27\x74\x36\x31\x31\x3a\x74\x37\x3b\x24\x3d\x31\x30\x75" -- The latest script has been copied!
-}
+local text = Instance.new("TextLabel")
+text.Name = "IntroText"
+text.AnchorPoint = Vector2.new(0.5, 0.5)
+text.Position = UDim2.fromScale(0.5, 0.5)
+text.Size = UDim2.new(0.95, 0, 0, 60)
+text.BackgroundTransparency = 1
+text.TextColor3 = Color3.new(1, 1, 1)
+text.TextStrokeTransparency = 0
+text.TextScaled = true
+text.Font = Enum.Font.GothamBold
+text.Visible = true
+text.Parent = gui
 
-local function _R(idx)
-    return _D(_E[idx], _K)
+-- Hiển thị GUI
+local success = pcall(function()
+    gui.Parent = player:WaitForChild("PlayerGui", 10)
+end)
+
+if not success or not gui.Parent then
+    pcall(function()
+        gui.Parent = CoreGui
+    end)
 end
 
-local _G = game
-local _S = function(s) return _G:GetService(s) end
-
-local _P = _S(_R(1))
-local _T = _S(_R(2))
-local _LP = _P.LocalPlayer
-local _PG = _LP:WaitForChild(_R(3))
-
-local _GUI = Instance.new(_R(4))
-_GUI.Name = _R(5)
-_GUI.ResetOnSpawn = false
-_GUI.IgnoreGuiInset = true
-_GUI.Parent = _PG
-
-local _TXT = Instance.new(_R(6))
-_TXT.Size = UDim2.new(1, 0, 0, 50)
-_TXT.Position = UDim2.new(0, 0, 0.5, -25)
-_TXT.BackgroundTransparency = 1
-_TXT.TextColor3 = Color3.fromRGB(255, 255, 255)
-_TXT.TextStrokeTransparency = 0
-_TXT.TextScaled = true
-_TXT.Font = Enum.Font.GothamBold
-_TXT.Parent = _GUI
-
-local function _F()
-    local _TW = _T:Create(_TXT, TweenInfo.new(1, Enum.EasingStyle.Linear), {TextTransparency = 1, TextStrokeTransparency = 1})
-    _TW:Play()
-    _TW.Completed:Wait()
+if not gui.Parent then
+    warn("Team Knor: Không thể tạo GUI!")
+    return
 end
 
-local function _S_T(m)
-    _TXT.Text = m
-    _TXT.TextTransparency = 0
-    _TXT.TextStrokeTransparency = 0
+local function show(message)
+    text.Text = message
+    text.TextTransparency = 0
+    text.TextStrokeTransparency = 0
 end
 
-_S_T(_R(7))
+local function fade()
+    local tween = TweenService:Create(
+        text,
+        TweenInfo.new(1, Enum.EasingStyle.Linear),
+        {
+            TextTransparency = 1,
+            TextStrokeTransparency = 1
+        }
+    )
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+show("Script made by Team Knor")
 task.wait(1)
-_F()
+fade()
 
 task.wait(0.5)
-
-_S_T(_R(8))
+show("Tiktok : Knorviet | YouTube : Knor Actual")
 task.wait(1)
-_F()
+fade()
 
 task.wait(1)
-
-_S_T(_R(9))
+show("This script is out Update")
 task.wait(1)
-_F()
+fade()
 
 task.wait(0.4)
 
-local _L = _R(10)
-_S_T(_R(11))
+local latestScript =
+    'loadstring(game:HttpGet("https://raw.githubusercontent.com/Knorvn/Note/refs/heads/main/Raw/BlackFlash-Chain.ReadMe.txt"))()'
+
+show("The latest script has been copied!")
 
 if setclipboard then
-    setclipboard(_L)
+    pcall(setclipboard, latestScript)
 elseif toclipboard then
-    toclipboard(_L)
+    pcall(toclipboard, latestScript)
 end
 
 task.wait(1)
-_F()
+fade()
+gui:Destroy()
 
-_GUI:Destroy()
+task.wait(1)
+
+-- Chạy script chính cũ
+local ok, err = pcall(function()
+    loadstring(game:HttpGet(
+        "https://pastefy.app/EjsgXeLf/raw"
+    ))()
+end)
+
+if not ok then
+    warn("Team Knor script error:", err)
+end
