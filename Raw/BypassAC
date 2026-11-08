@@ -1,258 +1,342 @@
--- ============================================================
--- Clash Hub UI | knor bypass (auto)
--- ============================================================
-
-local Library = loadstring(game:HttpGet("https://pastefy.app/g3niwpJt/raw"))()
-local Window = Library:CreateWindow("knor bypass (auto)")
-
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
-local localPlayer = Players.LocalPlayer
+local player = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
 
--- Biến Trạng Thái & Cấu Hình
-local state = {
-    Noclip = false,
-    Bypass = false,
-    SweepAll = false,
-    ViewRandom = false
-}
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BypassHackSpeedGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local CONFIG = {
-    SweepTime = 0.01 -- Mặc định 0.01s cho mỗi mục tiêu
-}
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 260, 0, 135)
+mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
 
-local resetCount = 0 -- Đếm số lần reset
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 6)
 
--- Hàm Phát Thông Báo
-local function notify(title, text)
-    pcall(function()
-        if Library.Notify then
-            Library:Notify(title, text)
-        elseif Library.Notification then
-            Library:Notification(title, text)
-        else
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = title,
-                Text = text,
-                Duration = 3
-            })
-        end
-    end)
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(1, 0, 0, 25)
+titleLabel.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+titleLabel.Text = "  Bypass Hack Speed"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 12
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = mainFrame
+Instance.new("UICorner", titleLabel).CornerRadius = UDim.new(0, 6)
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Name = "MinimizeBtn"
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -25, 0, 0)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+minimizeBtn.Text = "-"
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.TextSize = 14
+minimizeBtn.Font = Enum.Font.SourceSansBold
+minimizeBtn.Parent = mainFrame
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 6)
+
+local contentContainer = Instance.new("Folder")
+contentContainer.Name = "ContentContainer"
+contentContainer.Parent = mainFrame
+
+local dragging, dragInput, dragStart, startPos
+titleLabel.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end)
+
+titleLabel.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+local isMinimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	if isMinimized then
+		minimizeBtn.Text = "+"
+		mainFrame.Size = UDim2.new(0, 260, 0, 25)
+		for _, child in pairs(contentContainer:GetChildren()) do if child:IsA("GuiObject") then child.Visible = false end end
+	else
+		minimizeBtn.Text = "-"
+		mainFrame.Size = UDim2.new(0, 260, 0, 135)
+		for _, child in pairs(contentContainer:GetChildren()) do if child:IsA("GuiObject") then child.Visible = true end end
+	end
+end)
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 120, 0, 30)
+toggleBtn.Position = UDim2.new(0, 5, 0, 30)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.Text = "Invisible : OFF"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+toggleBtn.TextSize = 11
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.Parent = contentContainer
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 4)
+
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0, 120, 0, 30)
+speedBox.Position = UDim2.new(0, 130, 0, 30)
+speedBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+speedBox.PlaceholderText = "Speed... (25)"
+speedBox.Text = ""
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+speedBox.TextSize = 11
+speedBox.Parent = contentContainer
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 4)
+
+local noclipBtn = Instance.new("TextButton")
+noclipBtn.Size = UDim2.new(0, 120, 0, 30)
+noclipBtn.Position = UDim2.new(0, 5, 0, 65)
+noclipBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+noclipBtn.Text = "Noclip : ON"
+noclipBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+noclipBtn.TextSize = 11
+noclipBtn.Font = Enum.Font.SourceSansBold
+noclipBtn.Parent = contentContainer
+Instance.new("UICorner", noclipBtn).CornerRadius = UDim.new(0, 4)
+
+local autoDoorBtn = Instance.new("TextButton")
+autoDoorBtn.Size = UDim2.new(0, 120, 0, 30)
+autoDoorBtn.Position = UDim2.new(0, 130, 0, 65)
+autoDoorBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+autoDoorBtn.Text = "Auto Door : OFF"
+autoDoorBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+autoDoorBtn.TextSize = 11
+autoDoorBtn.Font = Enum.Font.SourceSansBold
+autoDoorBtn.Parent = contentContainer
+Instance.new("UICorner", autoDoorBtn).CornerRadius = UDim.new(0, 4)
+
+local sweepBtn = Instance.new("TextButton")
+sweepBtn.Size = UDim2.new(0, 245, 0, 30)
+sweepBtn.Position = UDim2.new(0, 5, 0, 100)
+sweepBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sweepBtn.Text = "Sweep all : OFF"
+sweepBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+sweepBtn.TextSize = 11
+sweepBtn.Font = Enum.Font.SourceSansBold
+sweepBtn.Parent = contentContainer
+Instance.new("UICorner", sweepBtn).CornerRadius = UDim.new(0, 4)
+
+local isEnabled = false
+local isNoclip = true
+local isAutoDoor = false
+local isSweep = false
+local moveSpeed = 25
+local depthDistance = 6
+
+local controlPart = nil
+local bodyVelocity = nil
+local renderConnection = nil
+local jumpConnection = nil
+local doorTask = nil
+local sweepTask = nil
+
+speedBox.FocusLost:Connect(function()
+	local num = tonumber(speedBox.Text)
+	if num then moveSpeed = num else speedBox.Text = "" end
+end)
+
+noclipBtn.MouseButton1Click:Connect(function()
+	isNoclip = not isNoclip
+	if isNoclip then
+		noclipBtn.Text = "Noclip : ON"
+		noclipBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else
+		noclipBtn.Text = "Noclip : OFF"
+		noclipBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end
+end)
+
+autoDoorBtn.MouseButton1Click:Connect(function()
+	isAutoDoor = not isAutoDoor
+	if isAutoDoor then
+		autoDoorBtn.Text = "Auto Door : ON"
+		autoDoorBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		doorTask = task.spawn(function()
+			while isAutoDoor do
+				task.wait(0.5)
+				for _, obj in pairs(Workspace:GetDescendants()) do
+					if obj.Name == "HalloweenDoor" then
+						for _, child in pairs(obj:GetDescendants()) do
+							if child:IsA("ProximityPrompt") then
+								pcall(function() fireproximityprompt(child) end)
+							end
+						end
+					end
+				end
+			end
+		end)
+	else
+		autoDoorBtn.Text = "Auto Door : OFF"
+		autoDoorBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end
+end)
+
+sweepBtn.MouseButton1Click:Connect(function()
+	isSweep = not isSweep
+	if isSweep then
+		sweepBtn.Text = "Sweep all : ON"
+		sweepBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		sweepTask = task.spawn(function()
+			local lastTarget = nil
+			while isSweep do
+				local targets = {}
+				for _, p in pairs(Players:GetPlayers()) do
+					if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+						table.insert(targets, p.Character.HumanoidRootPart)
+					end
+				end
+				for _, obj in pairs(Workspace:GetDescendants()) do
+					if obj:IsA("Model") and obj ~= player.Character and (obj:FindFirstChildOfClass("Humanoid") or obj:FindFirstChild("HumanoidRootPart")) then
+						local hrp = obj:FindFirstChild("HumanoidRootPart")
+						if hrp then
+							table.insert(targets, hrp)
+						end
+					end
+				end
+				
+				if #targets > 0 then
+					local validTargets = {}
+					for _, t in pairs(targets) do
+						if t ~= lastTarget then
+							table.insert(validTargets, t)
+						end
+					end
+					if #validTargets == 0 then validTargets = targets end
+					
+					local chosenTarget = validTargets[math.random(1, #validTargets)]
+					lastTarget = chosenTarget
+					
+					local character = player.Character
+					if character and character:FindFirstChild("HumanoidRootPart") then
+						if controlPart then
+							controlPart.CFrame = chosenTarget.CFrame + Vector3.new(0, 3, 0)
+						else
+							character.HumanoidRootPart.CFrame = chosenTarget.CFrame + Vector3.new(0, 3, 0)
+						end
+					end
+				end
+				task.wait(0.03)
+			end
+		end)
+	else
+		sweepBtn.Text = "Sweep all : OFF"
+		sweepBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+		if sweepTask then
+			task.cancel(sweepTask)
+			sweepTask = nil
+		end
+	end
+end)
+
+local function toggleInvisible()
+	isEnabled = not isEnabled
+	
+	local character = player.Character
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+	local rootPart = character.HumanoidRootPart
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if isEnabled then
+		toggleBtn.Text = "Invisible : ON"
+		toggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+
+		controlPart = Instance.new("Part")
+		controlPart.Name = "InvisibleControlPart"
+		controlPart.Size = Vector3.new(2, 5, 2)
+		controlPart.CFrame = rootPart.CFrame
+		controlPart.CanCollide = false
+		controlPart.Anchored = false
+		controlPart.Material = Enum.Material.SmoothPlastic
+		controlPart.Transparency = 0.5
+		controlPart.Color = Color3.fromRGB(233, 233, 233)
+		controlPart.Parent = Workspace
+
+		local bodyGyro = Instance.new("BodyGyro")
+		bodyGyro.MaxTorque = Vector3.new(1e5, 0, 1e5)
+		bodyGyro.CFrame = controlPart.CFrame
+		bodyGyro.Parent = controlPart
+
+		bodyVelocity = Instance.new("BodyVelocity")
+		bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+		bodyVelocity.Velocity = Vector3.zero
+		bodyVelocity.Parent = controlPart
+
+		camera.CameraSubject = controlPart
+
+		jumpConnection = humanoid.Jumping:Connect(function(isJumping)
+			if isJumping and controlPart then
+				controlPart.AssemblyLinearVelocity = Vector3.new(controlPart.AssemblyLinearVelocity.X, 50, controlPart.AssemblyLinearVelocity.Z)
+			end
+		end)
+
+		renderConnection = RunService.RenderStepped:Connect(function()
+			if not character or not rootPart or not controlPart or not humanoid then return end
+
+			if isNoclip then
+				controlPart.CanCollide = false
+				rootPart.CanCollide = false
+			else
+				controlPart.CanCollide = true
+				rootPart.CanCollide = true
+			end
+
+			local moveDir = humanoid.MoveDirection
+			if moveDir.Magnitude > 0 then
+				bodyVelocity.Velocity = Vector3.new(moveDir.X * moveSpeed, controlPart.AssemblyLinearVelocity.Y, moveDir.Z * moveSpeed)
+			else
+				bodyVelocity.Velocity = Vector3.new(0, controlPart.AssemblyLinearVelocity.Y, 0)
+			end
+
+			rootPart.AssemblyLinearVelocity = controlPart.AssemblyLinearVelocity
+			rootPart.CFrame = CFrame.new(controlPart.Position - Vector3.new(0, depthDistance, 0)) * CFrame.Angles(math.rad(90), 0, 0)
+		end)
+
+	else
+		toggleBtn.Text = "Invisible : OFF"
+		toggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+		if renderConnection then renderConnection:Disconnect() renderConnection = nil end
+		if jumpConnection then jumpConnection:Disconnect() jumpConnection = nil end
+
+		for _, part in pairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then part.CanCollide = true end
+		end
+
+		if humanoid then camera.CameraSubject = humanoid end
+		if controlPart then controlPart:Destroy() controlPart = nil end
+		
+		rootPart.CFrame = CFrame.new(rootPart.Position + Vector3.new(0, depthDistance, 0))
+	end
 end
 
--- 1. Noclip Loop
-RunService.Stepped:Connect(function()
-    if state.Noclip and localPlayer.Character then
-        for _, part in ipairs(localPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
--- Hàm Lấy Target trong bán kính 500 studs
-local function getTarget(maxDistance)
-    maxDistance = maxDistance or 500
-    local targets = {}
-    
-    local myChar = localPlayer.Character
-    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return nil end
-
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= localPlayer and p.Character then
-            local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
-            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-            if humanoid and humanoid.Health > 0 and hrp then
-                if (hrp.Position - myHRP.Position).Magnitude <= maxDistance then
-                    table.insert(targets, humanoid)
-                end
-            end
-        end
-    end
-    
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Model") and string.lower(obj.Name) == "dummy" then
-            local humanoid = obj:FindFirstChildOfClass("Humanoid")
-            local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
-            if humanoid and humanoid.Health > 0 and hrp then
-                if (hrp.Position - myHRP.Position).Magnitude <= maxDistance then
-                    table.insert(targets, humanoid)
-                end
-            end
-        end
-    end
-    
-    if #targets > 0 then
-        return targets[math.random(1, #targets)]
-    end
-    return nil
-end
-
--- 2. Logic Bypass Loop
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if state.Bypass then
-            local character = localPlayer.Character
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
-            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            
-            if hrp and humanoid and humanoid.Health > 0 then
-                local targetHumanoid = getTarget(500)
-                local targetHRP = targetHumanoid and targetHumanoid.Parent and (targetHumanoid.Parent:FindFirstChild("HumanoidRootPart") or targetHumanoid.Parent:FindFirstChild("Torso"))
-                
-                if targetHRP then
-                    local startPos = hrp.Position
-                    
-                    -- Dịch chuyển ra ĐẰNG SAU đối thủ (2.5 studs)
-                    hrp.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 2.5)
-                    
-                    local teleportedBack = false
-                    local timer = 0
-                    
-                    while timer < 3 do
-                        task.wait(0.1)
-                        timer = timer + 0.1
-                        
-                        if not state.Bypass or not humanoid or humanoid.Health <= 0 then 
-                            break 
-                        end
-                        
-                        if (hrp.Position - startPos).Magnitude < 10 then
-                            teleportedBack = true
-                            break
-                        end
-                    end
-                    
-                    if state.Bypass and humanoid and humanoid.Health > 0 then
-                        if teleportedBack then
-                            local resetRemote = ReplicatedStorage:FindFirstChild("Knit")
-                                and ReplicatedStorage.Knit:FindFirstChild("Knit")
-                                and ReplicatedStorage.Knit.Knit:FindFirstChild("Services")
-                                and ReplicatedStorage.Knit.Knit.Services:FindFirstChild("JoinService")
-                                and ReplicatedStorage.Knit.Knit.Services.JoinService:FindFirstChild("RE")
-                                and ReplicatedStorage.Knit.Knit.Services.JoinService.RE:FindFirstChild("Reset")
-                            
-                            while state.Bypass and humanoid and humanoid.Health > 0 do
-                                if resetRemote then
-                                    resetRemote:FireServer()
-                                    resetCount = resetCount + 1
-                                end
-                                task.wait(3)
-                            end
-                        else
-                            notify("Knor bypass", "Bypass Success (Resets: " .. tostring(resetCount) .. ")")
-                            task.wait(2)
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- 3. Logic Sweep All Loop (TP Sau lưng, không lặp lại mục tiêu)
-task.spawn(function()
-    while true do
-        task.wait(0.01)
-        if state.SweepAll then
-            local myChar = localPlayer.Character
-            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            local humanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
-            
-            if myHRP and humanoid and humanoid.Health > 0 then
-                local targets = {}
-                
-                -- Tìm Player trong bán kính 500 studs
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= localPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                        local hrp = p.Character.HumanoidRootPart
-                        if (hrp.Position - myHRP.Position).Magnitude <= 500 then
-                            table.insert(targets, hrp)
-                        end
-                    end
-                end
-                
-                -- Tìm Dummy trong bán kính 500 studs
-                for _, obj in ipairs(Workspace:GetDescendants()) do
-                    if obj:IsA("Model") and string.lower(obj.Name) == "dummy" then
-                        local hrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
-                        if hrp and (hrp.Position - myHRP.Position).Magnitude <= 500 then
-                            table.insert(targets, hrp)
-                        end
-                    end
-                end
-                
-                -- Dịch chuyển qua từng mục tiêu (Mỗi mục tiêu đúng 1 lần)
-                for _, targetHRP in ipairs(targets) do
-                    if not state.SweepAll or not humanoid or humanoid.Health <= 0 then break end
-                    if myHRP and targetHRP and targetHRP.Parent then
-                        -- Dịch chuyển ra ĐẰNG SAU đối thủ
-                        myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 2.5)
-                        
-                        -- Chờ theo thời gian tuỳ chỉnh trong Input (mặc định 0.01s)
-                        task.wait(CONFIG.SweepTime)
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- 4. Logic View Random
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if state.ViewRandom then
-            local targetHumanoid = getTarget(500)
-            if targetHumanoid then
-                camera.CameraSubject = targetHumanoid
-            end
-        end
-    end
-end)
-
--- ============================================================
--- UI ELEMENTS
--- ============================================================
-
-Window:AddToggle("Noclip", false, function(value)
-    state.Noclip = value
-end)
-
-Window:AddToggle("Bypass", false, function(value)
-    state.Bypass = value
-    if value then
-        resetCount = 0
-        notify("Knor bypass", "Start bypass")
-    end
-end)
-
-Window:AddToggle("Sweep All", false, function(value)
-    state.SweepAll = value
-end)
-
-Window:AddInput("Time...", "0.01", function(text)
-    local num = tonumber(text)
-    if num then
-        CONFIG.SweepTime = num
-    end
-end)
-
-Window:AddToggle("View random", false, function(value)
-    state.ViewRandom = value
-    
-    if not value then
-        local myCharacter = localPlayer.Character
-        local myHumanoid = myCharacter and myCharacter:FindFirstChildOfClass("Humanoid")
-        if myHumanoid then
-            camera.CameraSubject = myHumanoid
-        end
-    end
-end)
+toggleBtn.MouseButton1Click:Connect(toggleInvisible)
