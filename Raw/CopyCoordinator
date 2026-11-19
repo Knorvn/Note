@@ -1,0 +1,181 @@
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Parent = (gethui and gethui()) or CoreGui
+
+if Parent:FindFirstChild("CoordPickerGUI") then
+	Parent.CoordPickerGUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CoordPickerGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = Parent
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 210, 0, 148)
+Main.Position = UDim2.new(0.5, -105, 0.18, 0)
+Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Main.BorderSizePixel = 0
+Main.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = Main
+
+-- Toggle: Hình vuông (mặc định bật sẵn)
+local squareEnabled = true
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(1, -16, 0, 28)
+ToggleBtn.Position = UDim2.new(0, 8, 0, 8)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(45, 110, 70)
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 12
+ToggleBtn.Text = "Hình vuông: BẬT ✅"
+ToggleBtn.Parent = Main
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleBtn
+
+-- TextLabel: hiển thị X : | Y : | Z : hiện tại
+local CoordLabel = Instance.new("TextLabel")
+CoordLabel.Size = UDim2.new(1, -12, 0, 32)
+CoordLabel.Position = UDim2.new(0, 6, 0, 42)
+CoordLabel.BackgroundTransparency = 1
+CoordLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+CoordLabel.Font = Enum.Font.GothamBold
+CoordLabel.TextSize = 12
+CoordLabel.Text = "X : 0 | Y : 0 | Z : 0"
+CoordLabel.Parent = Main
+
+-- Button: copy tọa độ hiện tại theo kiểu X : ... | Y : ... | Z : ...
+local CopyBtn = Instance.new("TextButton")
+CopyBtn.Size = UDim2.new(1, -16, 0, 30)
+CopyBtn.Position = UDim2.new(0, 8, 0, 78)
+CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopyBtn.Font = Enum.Font.GothamSemibold
+CopyBtn.TextSize = 12
+CopyBtn.Text = "Copy Tọa Độ Hiện Tại"
+CopyBtn.Parent = Main
+
+local CopyCorner = Instance.new("UICorner")
+CopyCorner.CornerRadius = UDim.new(0, 6)
+CopyCorner.Parent = CopyBtn
+
+-- Nút phụ copy nhanh tọa độ màn hình X, Y của hình vuông nếu cần
+local Copy2DBtn = Instance.new("TextButton")
+Copy2DBtn.Size = UDim2.new(1, -16, 0, 26)
+Copy2DBtn.Position = UDim2.new(0, 8, 0, 113)
+Copy2DBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Copy2DBtn.TextColor3 = Color3.fromRGB(190, 190, 190)
+Copy2DBtn.Font = Enum.Font.Gotham
+Copy2DBtn.TextSize = 11
+Copy2DBtn.Text = "Copy Màn Hình (X, Y)"
+Copy2DBtn.Parent = Main
+
+local Copy2DCorner = Instance.new("UICorner")
+Copy2DCorner.CornerRadius = UDim.new(0, 6)
+Copy2DCorner.Parent = Copy2DBtn
+
+-- Hình vuông xám rất nhỏ kéo thả được
+local Square = Instance.new("Frame")
+Square.Size = UDim2.new(0, 16, 0, 16)
+Square.Position = UDim2.new(0.5, -8, 0.5, -8)
+Square.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+Square.BorderSizePixel = 1
+Square.BorderColor3 = Color3.fromRGB(0, 0, 0)
+Square.Visible = squareEnabled
+Square.Parent = ScreenGui
+
+local function MakeDraggable(obj)
+	local dragging, dragInput, dragStart, startPos
+	obj.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = obj.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	obj.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UIS.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+MakeDraggable(Main)
+MakeDraggable(Square)
+
+ToggleBtn.MouseButton1Click:Connect(function()
+	squareEnabled = not squareEnabled
+	Square.Visible = squareEnabled
+	if squareEnabled then
+		ToggleBtn.Text = "Hình vuông: BẬT ✅"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(45, 110, 70)
+	else
+		ToggleBtn.Text = "Hình vuông: TẮT ❌"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(110, 45, 45)
+	end
+end)
+
+local screenX, screenY = 0, 0
+local currentX, currentY, currentZ = 0, 0, 0
+
+local function UpdateScreenPos()
+	local pos = Square.AbsolutePosition
+	screenX = math.floor(pos.X)
+	screenY = math.floor(pos.Y)
+end
+
+Square:GetPropertyChangedSignal("AbsolutePosition"):Connect(UpdateScreenPos)
+UpdateScreenPos()
+
+RunService.RenderStepped:Connect(function()
+	local char = LocalPlayer.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if root then
+		currentX = math.floor(root.Position.X)
+		currentY = math.floor(root.Position.Y)
+		currentZ = math.floor(root.Position.Z)
+	end
+	CoordLabel.Text = "X : " .. currentX .. " | Y : " .. currentY .. " | Z : " .. currentZ
+end)
+
+local function GetFormattedCoord()
+	return "X : " .. currentX .. " | Y : " .. currentY .. " | Z : " .. currentZ
+end
+
+CopyBtn.MouseButton1Click:Connect(function()
+	if setclipboard then
+		setclipboard(GetFormattedCoord())
+		CopyBtn.Text = "Đã Copy! ✅"
+		task.wait(1)
+		CopyBtn.Text = "Copy Tọa Độ Hiện Tại"
+	end
+end)
+
+Copy2DBtn.MouseButton1Click:Connect(function()
+	if setclipboard then
+		setclipboard("X : " .. screenX .. " | Y : " .. screenY)
+		Copy2DBtn.Text = "Đã Copy 2D! ✅"
+		task.wait(1)
+		Copy2DBtn.Text = "Copy Màn Hình (X, Y)"
+	end
+end)
