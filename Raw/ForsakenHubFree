@@ -1,0 +1,743 @@
+local Library = loadstring(game:HttpGet("https://pastefy.app/gvP2UV0r/raw"))()
+
+local Window = Library:CreateWindow({
+    Name = "Forsaken hub Free v0.2",
+    Icon = 1234567890
+})
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Stamina Module Helper
+local function getStaminaModule()
+    local mod = nil
+    pcall(function()
+        local Sprinting = ReplicatedStorage:WaitForChild("Systems"):WaitForChild("Character"):WaitForChild("Game"):WaitForChild("Sprinting")
+        mod = require(Sprinting)
+    end)
+    return mod
+end
+
+local staminaModule = getStaminaModule()
+
+-- ==========================================
+-- TAB 1: STAMINA
+-- ==========================================
+local StaminaTab = Window:AddTab("Stamina", 1234567890)
+
+local maxStamVal = 100
+local minStamVal = -20
+local stamGainVal = 100
+local stamLossVal = 5
+local sprintSpeedVal = 40
+local infStaminaEnabled = false
+
+local function applyStaminaIndex()
+    staminaModule = staminaModule or getStaminaModule()
+    if staminaModule then
+        pcall(function()
+            staminaModule.MaxStamina = maxStamVal
+            staminaModule.MinStamina = minStamVal
+            staminaModule.StaminaGain = stamGainVal
+            staminaModule.StaminaLoss = stamLossVal
+            staminaModule.SprintSpeed = sprintSpeedVal
+        end)
+    end
+end
+
+local function applyInfiniteStamina(state)
+    staminaModule = staminaModule or getStaminaModule()
+    if staminaModule then
+        pcall(function()
+            staminaModule.StaminaLossDisabled = state
+        end)
+    end
+end
+
+StaminaTab:AddTextBox("Max stamina", function(value)
+    local num = tonumber(value)
+    if num then maxStamVal = num end
+end, 1234567890)
+
+StaminaTab:AddTextBox("Min stamina", function(value)
+    local num = tonumber(value)
+    if num then minStamVal = num end
+end, 1234567890)
+
+StaminaTab:AddTextBox("Stamina gain", function(value)
+    local num = tonumber(value)
+    if num then stamGainVal = num end
+end, 1234567890)
+
+StaminaTab:AddTextBox("Stamina loss", function(value)
+    local num = tonumber(value)
+    if num then stamLossVal = num end
+end, 1234567890)
+
+StaminaTab:AddTextBox("Sprint speed", function(value)
+    local num = tonumber(value)
+    if num then sprintSpeedVal = num end
+end, 1234567890)
+
+StaminaTab:AddButton("set new Stamina index", function()
+    applyStaminaIndex()
+end, "1234567890")
+
+StaminaTab:AddToggle("Infinite Stamina", function(state)
+    infStaminaEnabled = state
+    applyInfiniteStamina(infStaminaEnabled)
+end, 1234567890)
+
+-- ==========================================
+-- TAB 2: VISUAL (HIGHLIGHT ONLY)
+-- ==========================================
+local VisualTab = Window:AddTab("visual", 1234567890)
+
+local espFlags = {
+    Survivor = false,
+    Killer = false,
+    Item = false,
+    All = false
+}
+
+local function applyHighlight(target, name, color)
+    if not target then return end
+    local hl = target:FindFirstChild(name)
+    if not hl then
+        hl = Instance.new("Highlight")
+        hl.Name = name
+        hl.FillTransparency = 1
+        hl.OutlineTransparency = 0
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Parent = target
+    end
+    hl.OutlineColor = color
+end
+
+local function removeHighlight(target, name)
+    if target then
+        local hl = target:FindFirstChild(name)
+        if hl then hl:Destroy() end
+    end
+end
+
+local function isKiller(player)
+    if player.Team and (player.Team.Name:lower():find("killer") or player.Team.Name:lower():find("monster")) then
+        return true
+    end
+    if player.Character and (player.Character:GetAttribute("IsKiller") or player.Character:FindFirstChild("KillerTag")) then
+        return true
+    end
+    return false
+end
+
+RunService.Heartbeat:Connect(function()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local char = plr.Character
+            local killerStatus = isKiller(plr)
+
+            if espFlags.All then
+                applyHighlight(char, "ForsakenESP_Player", Color3.fromRGB(255, 255, 255))
+            elseif espFlags.Killer and killerStatus then
+                applyHighlight(char, "ForsakenESP_Player", Color3.fromRGB(255, 0, 0))
+            elseif espFlags.Survivor and not killerStatus then
+                applyHighlight(char, "ForsakenESP_Player", Color3.fromRGB(0, 255, 0))
+            else
+                removeHighlight(char, "ForsakenESP_Player")
+            end
+        end
+    end
+
+    local itemFolder = workspace:FindFirstChild("Items") or workspace:FindFirstChild("Map") or workspace
+    for _, obj in ipairs(itemFolder:GetDescendants()) do
+        if obj:IsA("Tool") or (obj:IsA("Model") and (obj.Name:lower():find("item") or obj.Name:lower():find("medkit") or obj.Name:lower():find("cola"))) then
+            if espFlags.Item then
+                applyHighlight(obj, "ForsakenESP_Item", Color3.fromRGB(0, 140, 255))
+            else
+                removeHighlight(obj, "ForsakenESP_Item")
+            end
+        end
+    end
+end)
+
+VisualTab:AddToggle("Esp survivor", function(state)
+    espFlags.Survivor = state
+end, 1234567890)
+
+VisualTab:AddToggle("Esp Killer", function(state)
+    espFlags.Killer = state
+end, 1234567890)
+
+VisualTab:AddToggle("Esp item", function(state)
+    espFlags.Item = state
+end, 1234567890)
+
+VisualTab:AddToggle("Esp All", function(state)
+    espFlags.All = state
+end, 1234567890)
+
+-- ==========================================
+-- TAB 3: VFX & OPTIMIZATION
+-- ==========================================
+local VFXTab = Window:AddTab("VFX", 1234567890)
+
+local savedVFX = {}
+local vfxConn = nil
+
+local function disableVFXObj(obj)
+    if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+        if obj.Enabled then
+            savedVFX[obj] = true
+            obj.Enabled = false
+        end
+    end
+end
+
+VFXTab:AddToggle("delete VFX", function(state)
+    if state then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            disableVFXObj(obj)
+        end
+        vfxConn = workspace.DescendantAdded:Connect(function(obj)
+            task.defer(function()
+                disableVFXObj(obj)
+            end)
+        end)
+    else
+        if vfxConn then
+            vfxConn:Disconnect()
+            vfxConn = nil
+        end
+        for obj, _ in pairs(savedVFX) do
+            if obj and obj.Parent then
+                pcall(function() obj.Enabled = true end)
+            end
+        end
+        table.clear(savedVFX)
+    end
+end, 1234567890)
+
+local savedLighting = {}
+local savedMaterials = {}
+local savedTextures = {}
+local fbConn = nil
+
+VFXTab:AddToggle("Full Bright", function(state)
+    if state then
+        savedLighting = {
+            Brightness = Lighting.Brightness,
+            ClockTime = Lighting.ClockTime,
+            FogEnd = Lighting.FogEnd,
+            FogStart = Lighting.FogStart,
+            GlobalShadows = Lighting.GlobalShadows,
+            Ambient = Lighting.Ambient
+        }
+
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 0
+        Lighting.GlobalShadows = false
+        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+
+        for _, v in ipairs(Lighting:GetDescendants()) do
+            if v:IsA("Atmosphere") or v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") then
+                if v:IsA("Atmosphere") then
+                    savedLighting[v] = v.Density
+                    v.Density = 0
+                else
+                    savedLighting[v] = v.Enabled
+                    v.Enabled = false
+                end
+            end
+        end
+
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                savedMaterials[obj] = obj.Material
+                obj.Material = Enum.Material.SmoothPlastic
+            elseif obj:IsA("Texture") or obj:IsA("Decal") then
+                savedTextures[obj] = obj.Transparency
+                obj.Transparency = 1
+            end
+        end
+
+        fbConn = Lighting.LightingChanged:Connect(function()
+            Lighting.FogEnd = 100000
+            Lighting.ClockTime = 14
+            Lighting.Brightness = 2
+        end)
+    else
+        if fbConn then
+            fbConn:Disconnect()
+            fbConn = nil
+        end
+
+        if savedLighting.Brightness then
+            Lighting.Brightness = savedLighting.Brightness
+            Lighting.ClockTime = savedLighting.ClockTime
+            Lighting.FogEnd = savedLighting.FogEnd
+            Lighting.FogStart = savedLighting.FogStart
+            Lighting.GlobalShadows = savedLighting.GlobalShadows
+            Lighting.Ambient = savedLighting.Ambient
+        end
+
+        for k, val in pairs(savedLighting) do
+            if typeof(k) == "Instance" and k.Parent then
+                if k:IsA("Atmosphere") then k.Density = val else k.Enabled = val end
+            end
+        end
+
+        for obj, mat in pairs(savedMaterials) do
+            if obj and obj.Parent then obj.Material = mat end
+        end
+        for obj, trans in pairs(savedTextures) do
+            if obj and obj.Parent then obj.Transparency = trans end
+        end
+
+        table.clear(savedMaterials)
+        table.clear(savedTextures)
+    end
+end, 1234567890)
+
+-- ==========================================
+-- TAB 4: CHANCE
+-- ==========================================
+local ChanceTab = Window:AddTab("Chance", 1234567890)
+
+local active = false
+local shooting = false
+local aimMode = "Normal"
+local predictionMode = "Velocity"
+local predictionValue = 4
+local spinDuration = 0.5
+local aimDuration = 1.7
+local movementThreshold = 0.5
+
+local messageWhenAim = false
+local messageText = ""
+local messageSentThisAim = false
+
+local useCustomAnim = false
+local customAnimId = nil
+
+local autoCoinflip = false
+local coinflipTargetCharge = 3
+local lastCoinflipTime = 0
+local coinflipCooldown = 0.15
+
+local aimTargets = {"Slasher", "c00lkidd", "JohnDoe", "1x1x1x1", "Noli"}
+local Humanoid, HRP = nil, nil
+local lastTriggerTime = 0
+local aiming = false
+local originalWS, originalJP, originalAutoRotate = nil, nil, nil
+local prevFlintVisibleAim = false
+local prevFlintVisibleShoot = false
+
+local RemoteEvent = nil
+pcall(function()
+    RemoteEvent = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent")
+end)
+
+local function sendChatMessage(text)
+    if not text or text:match("^%s*$") then return end
+    pcall(function()
+        local channel = TextChatService.TextChannels and TextChatService.TextChannels.RBXGeneral
+        if channel then
+            channel:SendAsync(text)
+        end
+    end)
+end
+
+local function playCustomShootAnim()
+    if not useCustomAnim or not Humanoid or not customAnimId then return end
+    local animator = Humanoid:FindFirstChildOfClass("Animator") or Humanoid:FindFirstChild("Animator")
+    if not animator then return end
+
+    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+        track:Stop()
+    end
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://" .. customAnimId
+    local ok, track = pcall(function()
+        return animator:LoadAnimation(anim)
+    end)
+    if ok and track then
+        track:Play()
+        if track.Looped then
+            task.delay(1.7, function()
+                if track and track.IsPlaying then
+                    track:Stop()
+                end
+            end)
+        end
+    end
+end
+
+local function getValidTarget()
+    local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
+    if killersFolder then
+        for _, name in ipairs(aimTargets) do
+            local target = killersFolder:FindFirstChild(name)
+            if target and target:FindFirstChild("HumanoidRootPart") then
+                return target.HumanoidRootPart, target:FindFirstChild("Humanoid")
+            end
+        end
+    end
+    return nil, nil
+end
+
+local function getPingSeconds()
+    local ok, val = pcall(function()
+        local pingStat = Stats.Network.ServerStatsItem["Data Ping"]
+        return pingStat and pingStat:GetValue() or 100
+    end)
+    return (ok and val or 100) / 1000
+end
+
+local function getPredictedAimPosPing(targetHRP)
+    local ping = getPingSeconds()
+    local velocity = targetHRP.AssemblyLinearVelocity
+    if velocity.Magnitude <= movementThreshold then
+        return targetHRP.Position
+    end
+    return targetHRP.Position + (velocity * ping)
+end
+
+local function getPredictedAimPosInfrontHRPPing(targetHRP)
+    local ping = getPingSeconds()
+    local studs = ping * 60
+    if targetHRP.AssemblyLinearVelocity.Magnitude <= movementThreshold then
+        return targetHRP.Position
+    end
+    return targetHRP.Position + (targetHRP.CFrame.LookVector * studs)
+end
+
+local function computeAimPos(targetHRP, killerHumanoid)
+    if predictionMode == "Ping" then
+        return getPredictedAimPosPing(targetHRP, killerHumanoid)
+    elseif predictionMode == "Infront HRP" then
+        if targetHRP.AssemblyLinearVelocity.Magnitude > movementThreshold then
+            return targetHRP.Position + (targetHRP.CFrame.LookVector * predictionValue)
+        end
+        return targetHRP.Position
+    elseif predictionMode == "Infront HRP (Ping Adjust)" then
+        return getPredictedAimPosInfrontHRPPing(targetHRP)
+    else
+        if targetHRP.AssemblyLinearVelocity.Magnitude <= movementThreshold then
+            return targetHRP.Position
+        end
+        return targetHRP.Position + (targetHRP.AssemblyLinearVelocity * (predictionValue / 60))
+    end
+end
+
+local function isFlintlockVisible()
+    if not LocalPlayer.Character then return false end
+    local flint = LocalPlayer.Character:FindFirstChild("Flintlock", true)
+    if not flint then return false end
+    if not (flint:IsA("BasePart") or flint:IsA("MeshPart") or flint:IsA("UnionOperation")) then
+        flint = flint:FindFirstChildWhichIsA("BasePart", true)
+        if not flint then return false end
+    end
+    return flint.Transparency < 1
+end
+
+local function readCoinflipChargesText()
+    local ok, txt = pcall(function()
+        local mainUI = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("MainUI")
+        if not mainUI then return nil end
+        local abil = mainUI:FindFirstChild("AbilityContainer")
+        if not abil then return nil end
+        local coin = abil:FindFirstChild("Reroll")
+        if not coin then return nil end
+        local chargesLabel = coin:FindFirstChild("Charges")
+        if not chargesLabel then return nil end
+        return tostring(chargesLabel.Text)
+    end)
+    return ok and txt or nil
+end
+
+ChanceTab:AddToggle("Chance Aim", function(state)
+    active = state
+end, 1234567890)
+
+ChanceTab:AddDropdown("Prediction Mode", {
+    "Velocity",
+    "Ping",
+    "Infront HRP",
+    "Infront HRP (Ping Adjust)"
+}, function(value)
+    predictionMode = value
+end, 1234567890)
+
+ChanceTab:AddTextBox("Prediction / Studs Infront (default: 4)", function(value)
+    local num = tonumber(value)
+    if num then predictionValue = num end
+end, 1234567890)
+
+ChanceTab:AddDropdown("Aim Behavior Mode", {
+    "Normal",
+    "360"
+}, function(value)
+    aimMode = value
+end, 1234567890)
+
+ChanceTab:AddTextBox("Spin Duration (sec, default: 0.5)", function(value)
+    local num = tonumber(value)
+    if num then spinDuration = num end
+end, 1234567890)
+
+ChanceTab:AddToggle("Message When Aim", function(state)
+    messageWhenAim = state
+end, 1234567890)
+
+ChanceTab:AddTextBox("Message to send when aiming", function(value)
+    messageText = tostring(value or "")
+end, 1234567890)
+
+ChanceTab:AddToggle("Custom Shoot Anim", function(state)
+    useCustomAnim = state
+end, 1234567890)
+
+ChanceTab:AddTextBox("Enter Anim ID", function(value)
+    customAnimId = tonumber(value)
+end, 1234567890)
+
+ChanceTab:AddToggle("Auto Coinflip", function(state)
+    autoCoinflip = state
+end, 1234567890)
+
+ChanceTab:AddDropdown("Coinflip Target Charges", {
+    "1",
+    "2",
+    "3"
+}, function(value)
+    coinflipTargetCharge = tonumber(value) or 3
+end, 1234567890)
+
+-- ==========================================
+-- TAB 5: MICS
+-- ==========================================
+local MicsTab = Window:AddTab("Mics", 1234567890)
+
+local ORIGINAL_DASH_SPEED = 60
+local voidrushcontrol = false
+local isOverrideActive = false
+local voidRushConn = nil
+local autoGenEnabled = false
+
+local function stopVoidRushOverride()
+    if not isOverrideActive then return end
+    isOverrideActive = false
+
+    local hum = _G.Humanoid or Humanoid
+    if hum then
+        pcall(function()
+            hum.WalkSpeed = 16
+            hum.AutoRotate = true
+            hum:Move(Vector3.new(0, 0, 0))
+        end)
+    end
+
+    if voidRushConn then
+        voidRushConn:Disconnect()
+        voidRushConn = nil
+    end
+end
+
+local function startVoidRushOverride()
+    if isOverrideActive then return end
+    isOverrideActive = true
+
+    voidRushConn = RunService.RenderStepped:Connect(function()
+        local hum = _G.Humanoid or Humanoid
+        local root = _G.HumanoidRootPart or HRP
+        if not hum or not root then return end
+
+        hum.WalkSpeed = ORIGINAL_DASH_SPEED
+        hum.AutoRotate = false
+
+        local direction = root.CFrame.LookVector
+        local horizontal = Vector3.new(direction.X, 0, direction.Z)
+        if horizontal.Magnitude > 0 then
+            hum:Move(horizontal.Unit)
+        end
+    end)
+end
+
+MicsTab:AddToggle("Noli Void rush controll", function(state)
+    voidrushcontrol = state
+    if not voidrushcontrol then
+        stopVoidRushOverride()
+    end
+end, 1234567890)
+
+MicsTab:AddToggle("auto gen", function(state)
+    autoGenEnabled = state
+end, 1234567890)
+
+task.spawn(function()
+    while true do
+        task.wait(2.4)
+        if autoGenEnabled then
+            pcall(function()
+                workspace:WaitForChild("Map"):WaitForChild("Ingame"):WaitForChild("Map"):WaitForChild("Generator"):WaitForChild("Remotes"):WaitForChild("RE"):FireServer()
+            end)
+        end
+    end
+end)
+
+-- Character Setup + Auto Re-enable Infinite Stamina on Respawn
+local function setupCharacter(char)
+    Humanoid = char:WaitForChild("Humanoid")
+    HRP = char:WaitForChild("HumanoidRootPart")
+    _G.Humanoid = Humanoid
+    _G.HumanoidRootPart = HRP
+
+    aiming = false
+    shooting = false
+    originalWS, originalJP, originalAutoRotate = nil, nil, nil
+    stopVoidRushOverride()
+
+    task.defer(function()
+        staminaModule = getStaminaModule()
+        if infStaminaEnabled then
+            applyInfiniteStamina(true)
+        end
+    end)
+end
+
+if LocalPlayer.Character then
+    setupCharacter(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+-- Aimbot Loop
+RunService.RenderStepped:Connect(function()
+    if not active or not Humanoid or not HRP then return end
+
+    local isVisible = isFlintlockVisible()
+    if isVisible and not prevFlintVisibleAim and not aiming then
+        lastTriggerTime = tick()
+        aiming = true
+    end
+    prevFlintVisibleAim = isVisible
+
+    if aiming then
+        local elapsed = tick() - lastTriggerTime
+        if aimMode == "360" then
+            if elapsed <= spinDuration then
+                local spinProgress = elapsed / math.max(spinDuration, 0.01)
+                local spinAngle = math.rad(360 * spinProgress)
+                HRP.CFrame = CFrame.new(HRP.Position) * CFrame.Angles(0, spinAngle, 0)
+            elseif elapsed <= spinDuration + 0.7 then
+                if not originalWS then
+                    originalWS = Humanoid.WalkSpeed
+                    originalJP = Humanoid.JumpPower
+                    originalAutoRotate = Humanoid.AutoRotate
+                end
+                Humanoid.AutoRotate = false
+                HRP.AssemblyAngularVelocity = Vector3.zero
+                local targetHRP, killerHumanoid = getValidTarget()
+                if targetHRP then
+                    local aimPos = computeAimPos(targetHRP, killerHumanoid)
+                    if aimPos then
+                        local direction = (aimPos - HRP.Position).Unit
+                        local yRot = math.atan2(-direction.X, -direction.Z)
+                        HRP.CFrame = CFrame.new(HRP.Position) * CFrame.Angles(0, yRot, 0)
+                    end
+                end
+            else
+                aiming = false
+                if originalWS and originalJP and originalAutoRotate ~= nil then
+                    Humanoid.WalkSpeed = originalWS
+                    Humanoid.JumpPower = originalJP
+                    Humanoid.AutoRotate = originalAutoRotate
+                    originalWS, originalJP, originalAutoRotate = nil, nil, nil
+                end
+            end
+        else
+            if elapsed <= aimDuration then
+                if not originalWS then
+                    originalWS = Humanoid.WalkSpeed
+                    originalJP = Humanoid.JumpPower
+                    originalAutoRotate = Humanoid.AutoRotate
+                end
+                Humanoid.AutoRotate = false
+                HRP.AssemblyAngularVelocity = Vector3.zero
+                local targetHRP, killerHumanoid = getValidTarget()
+                if targetHRP then
+                    local aimPos = computeAimPos(targetHRP, killerHumanoid)
+                    if aimPos then
+                        local direction = (aimPos - HRP.Position).Unit
+                        local yRot = math.atan2(-direction.X, -direction.Z)
+                        HRP.CFrame = CFrame.new(HRP.Position) * CFrame.Angles(0, yRot, 0)
+                    end
+                end
+            else
+                aiming = false
+                if originalWS and originalJP and originalAutoRotate ~= nil then
+                    Humanoid.WalkSpeed = originalWS
+                    Humanoid.JumpPower = originalJP
+                    Humanoid.AutoRotate = originalAutoRotate
+                    originalWS, originalJP, originalAutoRotate = nil, nil, nil
+                end
+            end
+        end
+    end
+end)
+
+-- Shoot Anim + Chat Message + Auto Coinflip + Void Rush State Loop
+RunService.RenderStepped:Connect(function()
+    local isVisible = isFlintlockVisible()
+    if isVisible and not prevFlintVisibleShoot and not shooting then
+        shooting = true
+        messageSentThisAim = false
+        if messageWhenAim and not messageSentThisAim then
+            sendChatMessage(messageText)
+            messageSentThisAim = true
+        end
+    end
+    prevFlintVisibleShoot = isVisible
+
+    if shooting then
+        if useCustomAnim then
+            playCustomShootAnim()
+        end
+        messageSentThisAim = false
+        shooting = false
+    end
+
+    if autoCoinflip and RemoteEvent then
+        local charges = tonumber(readCoinflipChargesText())
+        if charges and charges < coinflipTargetCharge then
+            local now = tick()
+            if now - lastCoinflipTime >= coinflipCooldown then
+                lastCoinflipTime = now
+                pcall(function()
+                    RemoteEvent:FireServer("UseActorAbility", "CoinFlip")
+                end)
+            end
+        end
+    end
+
+    if voidrushcontrol then
+        local char = (_G.Humanoid and _G.Humanoid.Parent) or LocalPlayer.Character
+        local voidRushState = char and char:GetAttribute("VoidRushState")
+        if voidRushState == "Dashing" then
+            startVoidRushOverride()
+        else
+            stopVoidRushOverride()
+        end
+    else
+        stopVoidRushOverride()
+    end
+end)
